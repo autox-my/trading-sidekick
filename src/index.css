@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: Dark mode background for the whole body */
+@layer base {
+
+  /* Dark Mode (Default) */
+  :root {
+    --bg-primary: 15, 23, 42;
+    /* Slate 900 */
+    --bg-secondary: 30, 41, 59;
+    /* Slate 800 */
+    --text-primary: 248, 250, 252;
+    /* Slate 50 */
+    --text-secondary: 148, 163, 184;
+    /* Slate 400 */
+    --accent-primary: 99, 102, 241;
+    /* Indigo 500 */
+    --accent-secondary: 79, 70, 229;
+    /* Indigo 600 */
+    --glass-border: 255, 255, 255;
+    --glass-opacity: 0.1;
+  }
+
+  /* Light Mode (Glassmorphism) */
+  .light {
+    --bg-secondary: 255, 255, 255;
+    /* Pure White for Glass */
+    --text-primary: 15, 23, 42;
+    /* Slate 900 */
+    --text-secondary: 71, 85, 105;
+    /* Slate 600 */
+    --accent-primary: 79, 70, 229;
+    /* Indigo 600 */
+    --accent-secondary: 99, 102, 241;
+    /* Indigo 500 */
+    --glass-border: 100, 116, 139;
+    /* Slate 500 - High Contrast Border */
+    --glass-opacity: 0.95;
+    /* Almost Opaque for Visibility */
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-[rgb(var(--bg-primary))] text-[rgb(var(--text-primary))];
+    background-image: radial-gradient(circle at 50% 0%, rgba(var(--accent-primary), 0.15), transparent 40%);
+    background-attachment: fixed;
+  }
+
+  .light body {
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(var(--accent-primary), 0.1), transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(var(--accent-secondary), 0.1), transparent 40%);
+  }
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
