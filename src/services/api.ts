@@ -75,9 +75,30 @@ export const fetchAlphaVantageNews = async (apiKey: string, symbol: string) => {
 };
 
 export const fetchGlobalMarketStatus = async (apiKey: string) => {
+    const checkLocalTime = () => {
+        const now = new Date();
+        const etNow = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+        const day = etNow.getDay();
+        const hour = etNow.getHours();
+        const minute = etNow.getMinutes();
+        const totalMinutes = hour * 60 + minute;
+
+        // Market Hours: 9:30 AM (570) - 4:00 PM (960) ET, Mon-Fri
+        const isOpen = day >= 1 && day <= 5 && totalMinutes >= 570 && totalMinutes < 960;
+
+        return {
+            region: "United States",
+            market_type: "Equity",
+            current_status: isOpen ? "open" : "closed",
+            notes: isOpen ? "Regular Trading Hours" : "Market Closed",
+            local_open: "09:30",
+            local_close: "16:00"
+        };
+    };
+
     if (!apiKey) {
-        console.log("fetchGlobalMarketStatus: No API key provided");
-        return null;
+        console.log("fetchGlobalMarketStatus: No API key provided, using local time check");
+        return checkLocalTime();
     }
     try {
         console.log("Fetching Global Market Status...");
@@ -88,15 +109,15 @@ export const fetchGlobalMarketStatus = async (apiKey: string) => {
 
         if (data.Note || data['Error Message']) {
             console.warn("Alpha Vantage API Limit or Error (Status):", data);
-            return null;
+            return checkLocalTime();
         }
 
         // Find US Market
         const usMarket = data.markets?.find((m: any) => m.region === "United States");
-        return usMarket || null;
+        return usMarket || checkLocalTime();
     } catch (e) {
         console.error("fetchGlobalMarketStatus Error:", e);
-        return null;
+        return checkLocalTime();
     }
 };
 
@@ -211,7 +232,7 @@ export const callGemini = async (userQuery: string, contextData: any, personalit
     // --- MODE SPECIFIC PROMPTS ---
     let modeInstruction = "";
     let modeHeader = "";
-    // let systemInstruction = personality.systemPrompt; // Initialize with default
+    let systemInstruction = personality.systemPrompt; // Initialize with default
 
     if (mode === 'ELLIOTT_WAVE') {
         modeHeader = "🌊 ELLIOTT WAVE DEEP SCAN";
@@ -295,7 +316,7 @@ export const callGemini = async (userQuery: string, contextData: any, personalit
     `;
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: contextPrompt }] }], systemInstruction: { parts: [{ text: personality.systemPrompt }] } }) });
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: contextPrompt }] }], systemInstruction: { parts: [{ text: systemInstruction }] } }) });
         const data = await response.json();
         if (data.error) return { text: `Error: ${data.error.message}`, suggestions: [] };
         let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response.";

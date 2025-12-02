@@ -1,23 +1,20 @@
 import React from 'react';
-import { Settings, X, Key, Check, BarChart2, AlignJustify, Activity } from 'lucide-react';
+import { Settings, Key, Check, BarChart2, AlignJustify, Activity, X } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
 import { useMarketStore } from '../../store/useMarketStore';
 
 export const ChartSettings: React.FC = () => {
-    const { showChartSettings, setShowChartSettings, avKeyStatus } = useUIStore();
+    const { avKeyStatus, theme, setThemeMode } = useUIStore();
     const { chartConfig, setChartConfig } = useMarketStore();
 
-    if (!showChartSettings) return null;
-
     return (
-        <div className="absolute bottom-24 left-8 z-[100] bg-secondary/95 backdrop-blur-2xl border border-[rgba(var(--glass-border),0.3)] rounded-3xl shadow-2xl w-80 p-6 animate-in fade-in slide-in-from-bottom-6 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-sm font-bold text-text-primary flex items-center gap-2"><Settings className="w-4 h-4 text-indigo-400" /> Display</h3>
-                <button onClick={() => setShowChartSettings(false)}><X size={18} className="text-text-secondary hover:text-text-primary transition-colors" /></button>
-            </div>
+        <div className="flex flex-col h-full p-4 overflow-y-auto">
+            <h2 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-indigo-400" /> Chart Settings
+            </h2>
 
             {/* Chart Type Selector */}
-            <div className="mb-6 p-1 bg-secondary/50 rounded-xl border border-[rgba(var(--glass-border),0.2)] flex gap-1">
+            <div className="mb-6 p-1 bg-secondary/40 rounded-xl border border-[rgba(var(--glass-border),0.2)] flex gap-1">
                 <button onClick={() => setChartConfig({ ...chartConfig, chartType: 'candle' })} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 ${chartConfig.chartType === 'candle' ? 'bg-indigo-600 text-white shadow-lg' : 'text-text-secondary hover:text-text-primary hover:bg-white/5'}`}>
                     <BarChart2 size={14} /> Candle
                 </button>
@@ -29,7 +26,7 @@ export const ChartSettings: React.FC = () => {
                 </button>
             </div>
 
-            <div className="mb-6 p-4 bg-secondary/50 rounded-2xl border border-[rgba(var(--glass-border),0.2)]">
+            <div className="mb-6 p-4 bg-secondary/40 rounded-2xl border border-[rgba(var(--glass-border),0.2)]">
                 <label className="text-[10px] uppercase font-bold text-indigo-400 mb-2 block flex items-center gap-1.5 tracking-widest"><Key size={12} /> Alpha Vantage Key</label>
                 <input type="password" placeholder="API Key..." value={chartConfig.avKey || ''} onChange={(e) => setChartConfig({ ...chartConfig, avKey: e.target.value })} className="w-full bg-secondary border border-[rgba(var(--glass-border),0.2)] rounded-xl px-3 py-2.5 text-xs text-text-primary focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all placeholder-text-secondary" />
                 <div className="flex items-center gap-2 mt-3">
@@ -39,24 +36,22 @@ export const ChartSettings: React.FC = () => {
                 </div>
             </div>
 
-
-
             <div className="space-y-6">
                 {/* Theme Section */}
                 <div>
                     <label className="text-[10px] text-text-secondary font-bold uppercase mb-3 block tracking-widest">Theme</label>
                     <div className="flex items-center justify-between p-1 mb-3">
                         <span className="text-xs text-text-secondary font-medium">Mode</span>
-                        <div className="flex bg-secondary/50 rounded-lg p-1 border border-[rgba(var(--glass-border),0.2)]">
+                        <div className="flex bg-secondary/40 rounded-lg p-1 border border-[rgba(var(--glass-border),0.2)]">
                             <button
-                                onClick={() => useUIStore.getState().setThemeMode('dark')}
-                                className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${useUIStore.getState().theme.mode === 'dark' ? 'bg-slate-700 text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                                onClick={() => setThemeMode('dark')}
+                                className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${theme.mode === 'dark' ? 'bg-slate-700 text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                             >
                                 Dark
                             </button>
                             <button
-                                onClick={() => useUIStore.getState().setThemeMode('light')}
-                                className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${useUIStore.getState().theme.mode === 'light' ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+                                onClick={() => setThemeMode('light')}
+                                className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${theme.mode === 'light' ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
                             >
                                 Light
                             </button>
@@ -64,27 +59,8 @@ export const ChartSettings: React.FC = () => {
                     </div>
                 </div>
                 <div className="h-px bg-[rgba(var(--glass-border),0.1)]"></div>
-                {/* Widgets Section */}
-                <div>
-                    <label className="text-[10px] text-text-secondary font-bold uppercase mb-3 block tracking-widest">Widgets</label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {['price', 'rsi', 'volume', 'volatility', 'sentiment', 'macro'].map((id) => {
-                            const widget = useUIStore.getState().widgets[id];
-                            if (!widget) return null;
-                            return (
-                                <button
-                                    key={id}
-                                    onClick={() => useUIStore.getState().toggleWidgetVisibility(id)}
-                                    className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all flex items-center justify-between ${widget.visible ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-700' : 'bg-secondary/40 border-[rgba(var(--glass-border),0.2)] text-text-secondary hover:bg-white/5'}`}
-                                >
-                                    <span className="capitalize">{id}</span>
-                                    <div className={`w-2 h-2 rounded-full ${widget.visible ? 'bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]' : 'bg-slate-700'}`} />
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-                <div className="h-px bg-[rgba(var(--glass-border),0.1)]"></div>
+
+                {/* Widgets Section - Removed as they are now in the Data tab */}
 
                 <div>
                     <label className="text-[10px] text-text-secondary font-bold uppercase mb-3 block tracking-widest">Layers</label>
@@ -136,22 +112,22 @@ export const ChartSettings: React.FC = () => {
                         <div className="flex items-center justify-between p-1">
                             <span className="text-xs text-text-secondary font-medium">Top</span>
                             <div className="flex items-center gap-2">
-                                <input type="range" min="0" max="0.5" step="0.01" value={chartConfig.marginTop} onChange={(e) => setChartConfig({ ...chartConfig, marginTop: parseFloat(e.target.value) })} className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                                <span className="text-[10px] text-slate-500 w-6 text-right">{(chartConfig.marginTop * 100).toFixed(0)}%</span>
+                                <input type="range" min="0" max="0.5" step="0.01" value={chartConfig.marginTop || 0} onChange={(e) => setChartConfig({ ...chartConfig, marginTop: parseFloat(e.target.value) })} className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                                <span className="text-[10px] text-slate-500 w-6 text-right">{((chartConfig.marginTop || 0) * 100).toFixed(0)}%</span>
                             </div>
                         </div>
                         <div className="flex items-center justify-between p-1">
                             <span className="text-xs text-text-secondary font-medium">Bottom</span>
                             <div className="flex items-center gap-2">
-                                <input type="range" min="0" max="0.5" step="0.01" value={chartConfig.marginBottom} onChange={(e) => setChartConfig({ ...chartConfig, marginBottom: parseFloat(e.target.value) })} className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                                <span className="text-[10px] text-slate-500 w-6 text-right">{(chartConfig.marginBottom * 100).toFixed(0)}%</span>
+                                <input type="range" min="0" max="0.5" step="0.01" value={chartConfig.marginBottom || 0} onChange={(e) => setChartConfig({ ...chartConfig, marginBottom: parseFloat(e.target.value) })} className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                                <span className="text-[10px] text-slate-500 w-6 text-right">{((chartConfig.marginBottom || 0) * 100).toFixed(0)}%</span>
                             </div>
                         </div>
                         <div className="flex items-center justify-between p-1">
                             <span className="text-xs text-text-secondary font-medium">Right</span>
                             <div className="flex items-center gap-2">
-                                <input type="range" min="0" max="0.5" step="0.01" value={chartConfig.marginRight} onChange={(e) => setChartConfig({ ...chartConfig, marginRight: parseFloat(e.target.value) })} className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
-                                <span className="text-[10px] text-slate-500 w-6 text-right">{(chartConfig.marginRight * 100).toFixed(0)}%</span>
+                                <input type="range" min="0" max="0.5" step="0.01" value={chartConfig.marginRight || 0} onChange={(e) => setChartConfig({ ...chartConfig, marginRight: parseFloat(e.target.value) })} className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                                <span className="text-[10px] text-slate-500 w-6 text-right">{((chartConfig.marginRight || 0) * 100).toFixed(0)}%</span>
                             </div>
                         </div>
                     </div>

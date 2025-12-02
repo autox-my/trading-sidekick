@@ -27,7 +27,7 @@ export const ScannerChips: React.FC = () => {
     if (activePatterns.length === 0) return null;
 
     return (
-        <div className="absolute bottom-24 left-8 z-20 flex gap-3 animate-in fade-in slide-in-from-bottom-4">
+        <div className="absolute bottom-6 left-6 z-20 flex gap-3 animate-in fade-in slide-in-from-bottom-4">
             {activePatterns.map((pat, i) => {
                 const type = getPatternType(pat);
                 let chipClass = "bg-slate-800/60 text-slate-300 border-white/10 hover:bg-slate-800";

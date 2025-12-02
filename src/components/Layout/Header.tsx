@@ -19,7 +19,8 @@ export const Header: React.FC = () => {
         setViewMode,
         connectionStatus,
         isSidebarOpen,
-        setIsSidebarOpen
+        setIsSidebarOpen,
+        theme
     } = useUIStore();
 
     const activeSymbol = useMarketStore(state => state.activeSymbol);
@@ -41,6 +42,8 @@ export const Header: React.FC = () => {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const searchRef = useRef<HTMLDivElement>(null);
+
+    const isDark = theme.mode === 'dark';
 
     // Handle Click Outside for Search
     useEffect(() => {
@@ -96,11 +99,11 @@ export const Header: React.FC = () => {
     };
 
     return (
-        <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-md relative shrink-0 z-20">
+        <header className={`h-16 border-b flex items-center justify-between px-6 backdrop-blur-md relative shrink-0 z-20 transition-colors duration-300 ${isDark ? 'bg-slate-900/50 border-white/5' : 'bg-white/80 border-slate-200'}`}>
             <div className="flex items-center gap-6 flex-1 min-w-0">
-                <div className="flex items-center gap-2 text-indigo-400/90 shrink-0 mr-2">
+                <div className={`flex items-center gap-2 shrink-0 mr-2 transition-colors duration-300 ${isDark ? 'text-indigo-400/90' : 'text-indigo-600'}`}>
                     <Activity className="w-5 h-5" />
-                    <span className="font-bold text-base tracking-tight hidden sm:inline text-indigo-100">AI Trading Analyst</span>
+                    <span className={`font-bold text-base tracking-tight hidden sm:inline transition-colors duration-300 ${isDark ? 'text-indigo-100' : 'text-slate-900'}`}>AI Trading Analyst</span>
                 </div>
 
                 <div className="relative group w-full max-w-md" ref={searchRef}>
@@ -115,42 +118,42 @@ export const Header: React.FC = () => {
                         }}
                         onClick={() => searchInput && setShowSuggestions(true)}
                         placeholder={activeSymbol}
-                        className="w-full bg-slate-950/50 text-white placeholder-slate-500 text-sm rounded-xl py-2.5 pl-11 pr-4 border border-white/5 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
+                        className={`w-full text-sm rounded-xl py-2.5 pl-11 pr-4 border focus:ring-1 transition-all shadow-inner ${isDark ? 'bg-slate-950/50 text-white placeholder-slate-500 border-white/5 focus:border-indigo-500/50 focus:ring-indigo-500/50' : 'bg-slate-100 text-slate-900 placeholder-slate-400 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500'}`}
                     />
-                    <Search className="w-4 h-4 text-slate-500 absolute left-4 top-3" />
+                    <Search className={`w-4 h-4 absolute left-4 top-3 transition-colors duration-300 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                     {showSuggestions && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 max-h-60 overflow-y-auto">
+                        <div className={`absolute top-full left-0 right-0 mt-2 border rounded-xl shadow-2xl overflow-hidden z-50 max-h-60 overflow-y-auto ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
                             {searchSuggestions.map((item: any, i: number) => (
-                                <button key={i} onClick={() => selectSymbol(item.symbol)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-800 flex justify-between items-center group border-b border-white/5 last:border-0">
+                                <button key={i} onClick={() => selectSymbol(item.symbol)} className={`w-full text-left px-4 py-2.5 text-xs flex justify-between items-center group border-b last:border-0 ${isDark ? 'hover:bg-slate-800 border-white/5' : 'hover:bg-slate-50 border-slate-100'}`}>
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-white text-sm">{item.symbol}</span>
+                                        <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.symbol}</span>
                                         <span className="text-[10px] text-slate-500 uppercase tracking-wider">{item.exchange} • {item.type}</span>
                                     </div>
-                                    <span className="text-slate-400 group-hover:text-slate-200 truncate max-w-[120px] text-right">{item.name}</span>
+                                    <span className={`truncate max-w-[120px] text-right ${isDark ? 'text-slate-400 group-hover:text-slate-200' : 'text-slate-400 group-hover:text-slate-600'}`}>{item.name}</span>
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
 
-                <div className="flex items-center bg-slate-800/40 border border-white/5 rounded-lg p-0.5 ml-2">
-                    <button onClick={() => setViewMode('chart')} className={`p-1.5 rounded-md transition-all ${viewMode === 'chart' ? 'bg-slate-700/80 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`} title="Price Chart"><Activity size={14} /></button>
-                    <button onClick={() => setViewMode('options_flow')} className={`p-1.5 rounded-md transition-all ${viewMode === 'options_flow' ? 'bg-slate-700/80 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`} title="Options Flow Analyzer"><MonitorPlay size={14} /></button>
+                <div className={`flex items-center border rounded-lg p-0.5 ml-2 transition-colors duration-300 ${isDark ? 'bg-slate-800/40 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
+                    <button onClick={() => setViewMode('chart')} className={`p-1.5 rounded-md transition-all ${viewMode === 'chart' ? (isDark ? 'bg-slate-700/80 text-white shadow-sm' : 'bg-white text-indigo-600 shadow-sm') : 'text-slate-400 hover:text-slate-600'}`} title="Price Chart"><Activity size={14} /></button>
+                    <button onClick={() => setViewMode('options_flow')} className={`p-1.5 rounded-md transition-all ${viewMode === 'options_flow' ? (isDark ? 'bg-slate-700/80 text-white shadow-sm' : 'bg-white text-indigo-600 shadow-sm') : 'text-slate-400 hover:text-slate-600'}`} title="Options Flow Analyzer"><MonitorPlay size={14} /></button>
                 </div>
 
                 <div className="relative group">
                     <input type="file" accept=".csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" ref={fileInputRef} onChange={handleFileUpload} />
-                    <button className={`p-2 rounded-lg transition-all border border-white/10 ${darkPoolLevels ? 'bg-indigo-900/20 text-indigo-300 border-indigo-500/30' : 'bg-slate-800/40 text-slate-400 hover:text-white'}`} title="Upload Dark Pool CSV"><UploadCloud size={16} /></button>
+                    <button className={`p-2 rounded-lg transition-all border ${darkPoolLevels ? 'bg-indigo-900/20 text-indigo-300 border-indigo-500/30' : (isDark ? 'bg-slate-800/40 text-slate-400 hover:text-white border-white/10' : 'bg-slate-100 text-slate-400 hover:text-slate-600 border-slate-200')}`} title="Upload Dark Pool CSV"><UploadCloud size={16} /></button>
                 </div>
 
-                <div className="hidden sm:flex bg-slate-950/50 border border-white/5 rounded-xl p-1 ml-auto shrink-0">
+                <div className={`hidden sm:flex border rounded-xl p-1 ml-auto shrink-0 transition-colors duration-300 ${isDark ? 'bg-slate-950/50 border-white/5' : 'bg-slate-100 border-slate-200'}`}>
                     {TIMEFRAMES.map(tf => (
-                        <button key={tf} onClick={() => setTimeframe(tf)} className={`px-4 py-1.5 rounded-lg text-[11px] font-medium transition-all ${timeframe === tf ? 'bg-slate-800 text-white shadow-sm border border-white/5' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>{tf}</button>
+                        <button key={tf} onClick={() => setTimeframe(tf)} className={`px-4 py-1.5 rounded-lg text-[11px] font-medium transition-all ${timeframe === tf ? (isDark ? 'bg-slate-800 text-white shadow-sm border border-white/5' : 'bg-white text-indigo-600 shadow-sm border border-slate-200') : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>{tf}</button>
                     ))}
                 </div>
             </div>
             <div className="flex items-center gap-4 ml-6 shrink-0">
-                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-950/50 border border-white/5 rounded-full ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'text-emerald-400' : 'text-amber-400') : (connectionStatus === 'live' ? 'text-emerald-400' : 'text-amber-400')}`}>
+                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors duration-300 ${isDark ? 'bg-slate-950/50 border-white/5' : 'bg-slate-100 border-slate-200'} ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'text-emerald-400' : 'text-amber-400') : (connectionStatus === 'live' ? 'text-emerald-400' : 'text-amber-400')}`}>
                     <div className={`w-1.5 h-1.5 rounded-full ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500') : (connectionStatus === 'live' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500')}`}></div>
                     <span className="text-[10px] font-bold uppercase tracking-wider">
                         {marketStatus?.current_status
@@ -158,14 +161,8 @@ export const Header: React.FC = () => {
                             : (connectionStatus === 'live' ? 'Live Feed' : 'Simulated')}
                     </span>
                 </div>
-                {/* Data Source Indicator */}
-                <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-950/50 border border-white/5 rounded-full text-slate-400">
-                    <span className="text-[10px] font-medium tracking-wider uppercase">Source:</span>
-                    <span className="text-[10px] font-bold text-indigo-400 tracking-wider uppercase truncate max-w-[150px]" title={dataSource}>
-                        {dataSource || 'Initializing...'}
-                    </span>
-                </div>
-                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors">
+
+                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-lg transition-colors ${isDark ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100'}`}>
                     {isSidebarOpen ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
                 </button>
             </div>
