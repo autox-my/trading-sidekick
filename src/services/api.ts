@@ -1,16 +1,103 @@
 import { analyzeLocalSentiment } from '../utils/helpers';
-import { calculateRSI, calculateSMA, getVolumeDensityAtPrice } from '../utils/calculations';
+import { getVolumeDensityAtPrice } from '../utils/calculations';
+import { marketDataService } from './MarketDataService';
 
 export const fetchAlphaVantageMacro = async (apiKey: string) => {
+    if (!apiKey) {
+        console.log("fetchAlphaVantageMacro: No API key provided");
+        return null;
+    }
+    try {
+        console.log("Fetching Alpha Vantage Macro Data...");
+        const [cpiRes, fedRes, gdpRes, unempRes, tnxRes] = await Promise.all([
+            fetch(`https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey=${apiKey}`),
+            fetch(`https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=monthly&apikey=${apiKey}`),
+            fetch(`https://www.alphavantage.co/query?function=REAL_GDP&interval=annual&apikey=${apiKey}`),
+            fetch(`https://www.alphavantage.co/query?function=UNEMPLOYMENT&apikey=${apiKey}`),
+            fetch(`https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=monthly&maturity=10year&apikey=${apiKey}`)
+        ]);
+
+        const [cpiData, fedData, gdpData, unempData, tnxData] = await Promise.all([
+            cpiRes.json(), fedRes.json(), gdpRes.json(), unempRes.json(), tnxRes.json()
+        ]);
+
+        console.log("Macro Data Responses:", { cpiData, fedData, gdpData, unempData, tnxData });
+
+        if (cpiData.Note || cpiData['Error Message']) {
+            console.warn("Alpha Vantage API Limit or Error:", cpiData);
+            return null;
+        }
+
+        return {
+            cpi: cpiData.data?.[0]?.value ? `${cpiData.data[0].value}%` : "Unavailable",
+            fed_rate: fedData.data?.[0]?.value ? `${fedData.data[0].value}%` : "Unavailable",
+            gdp: gdpData.data?.[0]?.value ? `$${gdpData.data[0].value}B` : "Unavailable",
+            unemployment: unempData.data?.[0]?.value ? `${unempData.data[0].value}%` : "Unavailable",
+            tnx_yield: tnxData.data?.[0]?.value ? `${tnxData.data[0].value}%` : "Unavailable",
+            source: "Alpha Vantage (Official)"
+        };
+    } catch (e) {
+        console.error("fetchAlphaVantageMacro Error:", e);
+        return null;
+    }
+};
+
+export const fetchAlphaVantageNews = async (apiKey: string, symbol: string) => {
     if (!apiKey) return null;
     try {
-        const cpiRes = await fetch(`https://www.alphavantage.co/query?function=CPI&interval=monthly&apikey=${apiKey}`);
-        const cpiData = await cpiRes.json();
-        const fedRes = await fetch(`https://www.alphavantage.co/query?function=FEDERAL_FUNDS_RATE&interval=monthly&apikey=${apiKey}`);
-        const fedData = await fedRes.json();
-        if (cpiData.Note || cpiData['Error Message'] || fedData.Note || fedData['Error Message']) return null;
-        return { cpi: cpiData.data?.[0]?.value ? `${cpiData.data[0].value}%` : "Unavailable", fed_rate: fedData.data?.[0]?.value ? `${fedData.data[0].value}%` : "Unavailable", source: "Alpha Vantage (Official)" };
+        const res = await fetch(`https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${symbol}&limit=5&apikey=${apiKey}`);
+        const data = await res.json();
+
+        if (data.Note || data['Error Message'] || !data.feed) return null;
+
+        let totalScore = 0;
+        const headlines = data.feed.map((item: any) => {
+            // Find sentiment for our specific ticker
+            const tickerSentiment = item.ticker_sentiment.find((t: any) => t.ticker === symbol);
+            const score = tickerSentiment ? parseFloat(tickerSentiment.ticker_sentiment_score) : 0;
+            totalScore += score;
+
+            return {
+                title: item.title,
+                url: item.url,
+                source: item.source,
+                score: score,
+                sentiment_label: tickerSentiment ? tickerSentiment.ticker_sentiment_label : 'Neutral',
+                pubDate: item.time_published
+            };
+        });
+
+        // Normalize total score to -1 to 1 range approx for display logic
+        const avgScore = headlines.length > 0 ? (totalScore / headlines.length) : 0;
+
+        return { headlines, totalScore: parseFloat(avgScore.toFixed(2)) };
     } catch (e) { return null; }
+};
+
+export const fetchGlobalMarketStatus = async (apiKey: string) => {
+    if (!apiKey) {
+        console.log("fetchGlobalMarketStatus: No API key provided");
+        return null;
+    }
+    try {
+        console.log("Fetching Global Market Status...");
+        const res = await fetch(`https://www.alphavantage.co/query?function=MARKET_STATUS&apikey=${apiKey}`);
+        const data = await res.json();
+
+        console.log("Market Status Response:", data);
+
+        if (data.Note || data['Error Message']) {
+            console.warn("Alpha Vantage API Limit or Error (Status):", data);
+            return null;
+        }
+
+        // Find US Market
+        const usMarket = data.markets?.find((m: any) => m.region === "United States");
+        return usMarket || null;
+    } catch (e) {
+        console.error("fetchGlobalMarketStatus Error:", e);
+        return null;
+    }
 };
 
 export const fetchRealNews = async (symbol: string) => {
@@ -84,28 +171,11 @@ export const fetchOptionsData = async (symbol: string) => {
 };
 
 export const fetchEagleEyeData = async (symbol: string) => {
-    const fetchTF = async (interval: string, range: string) => {
-        try {
-            const proxyUrl = "https://corsproxy.io/?";
-            const targetUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`);
-            const response = await fetch(proxyUrl + targetUrl);
-            const json = await response.json();
-            const quotes = json.chart.result[0].indicators.quote[0];
-            const timestamps = json.chart.result[0].timestamp;
-            const closes = timestamps.map((_: any, i: number) => quotes.close[i]).filter((c: any) => c != null);
-            const lastPrice = closes[closes.length - 1];
-            const rsi = calculateRSI(closes);
-            const sma = calculateSMA(closes, 20);
-            const trend = lastPrice > (sma || 0) ? "Bullish" : "Bearish";
-            return { interval, lastPrice, rsi, sma, trend };
-        } catch (e) { return null; }
-    };
-    const [daily, fiveMin] = await Promise.all([fetchTF('1d', '1y'), fetchTF('5m', '1d')]);
-    return { daily, fiveMin };
+    return await marketDataService.getEagleEyeData(symbol);
 };
 
 export const callGemini = async (userQuery: string, contextData: any, personality: any, mode?: string) => {
-    const apiKey = "AIzaSyAz1pojjk_mceSDWU87ZbYVmKJS3-URzBQ"; // Provided by environment
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ""; // Provided by environment
     const patterns = contextData.patterns.length > 0 ? contextData.patterns.join(", ") : "No specific candle patterns detected.";
     const levels = `Support ~$${contextData.sr.support.toFixed(2)}, Resistance ~$${contextData.sr.resistance.toFixed(2)}`;
     const macroStr = contextData.macro ? `Real Macro Data (Alpha Vantage): CPI ${contextData.macro.cpi}, Fed Rate ${contextData.macro.fed_rate}` : "Macro Data: Using standard consensus estimates.";
@@ -141,7 +211,7 @@ export const callGemini = async (userQuery: string, contextData: any, personalit
     // --- MODE SPECIFIC PROMPTS ---
     let modeInstruction = "";
     let modeHeader = "";
-    let systemInstruction = personality.systemPrompt; // Initialize with default
+    // let systemInstruction = personality.systemPrompt; // Initialize with default
 
     if (mode === 'ELLIOTT_WAVE') {
         modeHeader = "🌊 ELLIOTT WAVE DEEP SCAN";

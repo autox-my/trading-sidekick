@@ -99,9 +99,11 @@ export const HUD: React.FC = () => {
                     <div className="flex gap-4 text-xs font-mono">
                         <span className="text-text-secondary">CPI: <span className="text-text-primary font-bold">{macroData?.cpi || 'N/A'}</span></span>
                         <div className="w-px h-3 bg-white/10"></div>
-                        <span className="text-text-secondary">DXY: <span className={`font-bold ${macroCorrelations?.dxy?.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{macroCorrelations?.dxy?.price.toFixed(2) || 'N/A'}</span></span>
+                        <span className="text-text-secondary">GDP: <span className="text-text-primary font-bold">{macroData?.gdp || 'N/A'}</span></span>
                         <div className="w-px h-3 bg-white/10"></div>
-                        <span className="text-text-secondary">TNX: <span className={`font-bold ${macroCorrelations?.tnx?.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{macroCorrelations?.tnx?.price.toFixed(2) || 'N/A'}</span></span>
+                        <span className="text-text-secondary">Unemp: <span className="text-text-primary font-bold">{macroData?.unemployment || 'N/A'}</span></span>
+                        <div className="w-px h-3 bg-white/10"></div>
+                        <span className="text-text-secondary">10Y: <span className={`font-bold ${macroData?.tnx_yield ? 'text-emerald-400' : 'text-text-secondary'}`}>{macroData?.tnx_yield || 'N/A'}</span></span>
                     </div>
                 </div>
             </DraggableWidget>
@@ -163,7 +165,7 @@ export const HUD: React.FC = () => {
                             <div className="w-full h-1 bg-slate-700/50 rounded-full overflow-hidden mt-1">
                                 <div
                                     className={`h-full rounded-full transition-all duration-1000 ${newsData?.totalScore > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                                    style={{ width: `${Math.min(Math.abs(newsData?.totalScore || 0) * 10, 100)}%` }}
+                                    style={{ width: `${Math.min(Math.abs(newsData?.totalScore || 0) * 100, 100)}%` }}
                                 />
                             </div>
                         </div>

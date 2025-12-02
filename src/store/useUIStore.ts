@@ -42,6 +42,9 @@ interface UIState {
     widgets: Record<string, WidgetState>;
     theme: ThemeState;
 
+    sidekickPosition: { x: number; y: number };
+    sidekickSize: { width: number; height: number };
+
     // Actions
     setIsSidebarOpen: (open: boolean) => void;
     setSidebarWidth: (width: number) => void;
@@ -59,13 +62,15 @@ interface UIState {
     toggleWidgetVisibility: (id: string) => void;
     setThemeMode: (mode: 'dark' | 'light') => void;
     setThemeColor: (color: string) => void;
+    setSidekickPosition: (x: number, y: number) => void;
+    setSidekickSize: (width: number, height: number) => void;
 }
 
 export const useUIStore = create<UIState>()(
     persist(
         (set) => ({
             isSidebarOpen: true,
-            sidebarWidth: parseInt(localStorage.getItem('sidebarWidth') || '384'),
+            sidebarWidth: 384,
             viewMode: 'chart',
             showChartSettings: false,
             activeAnnotation: null,
@@ -73,7 +78,7 @@ export const useUIStore = create<UIState>()(
             isLoading: false,
             connectionStatus: 'live',
             avKeyStatus: 'idle',
-            externalToolUrl: localStorage.getItem('customToolUrl') || 'http://localhost:5173',
+            externalToolUrl: 'http://localhost:5173',
             isEditingUrl: false,
             autoFitTrigger: 0,
             widgets: {
@@ -88,10 +93,11 @@ export const useUIStore = create<UIState>()(
                 mode: 'dark',
                 accentColor: '#4f46e5' // Indigo-600
             },
+            sidekickPosition: { x: window.innerWidth - 420, y: 80 },
+            sidekickSize: { width: 400, height: 600 },
 
             setIsSidebarOpen: (open) => set({ isSidebarOpen: open }),
             setSidebarWidth: (width) => {
-                localStorage.setItem('sidebarWidth', width.toString());
                 set({ sidebarWidth: width });
             },
             setViewMode: (mode) => set({ viewMode: mode }),
@@ -102,7 +108,6 @@ export const useUIStore = create<UIState>()(
             setConnectionStatus: (status) => set({ connectionStatus: status }),
             setAvKeyStatus: (status) => set({ avKeyStatus: status }),
             setExternalToolUrl: (url) => {
-                localStorage.setItem('customToolUrl', url);
                 set({ externalToolUrl: url });
             },
             setIsEditingUrl: (editing) => set({ isEditingUrl: editing }),
@@ -121,10 +126,17 @@ export const useUIStore = create<UIState>()(
             })),
             setThemeMode: (mode) => set((state) => ({ theme: { ...state.theme, mode } })),
             setThemeColor: (color) => set((state) => ({ theme: { ...state.theme, accentColor: color } })),
+            setSidekickPosition: (x, y) => set({ sidekickPosition: { x, y } }),
+            setSidekickSize: (width, height) => set({ sidekickSize: { width, height } }),
         }),
         {
             name: 'ui-storage',
-            partialize: (state) => ({ widgets: state.widgets, theme: state.theme }),
+            partialize: (state) => ({
+                widgets: state.widgets,
+                theme: state.theme,
+                sidekickPosition: state.sidekickPosition,
+                sidekickSize: state.sidekickSize
+            }),
         }
     )
 );

@@ -15,17 +15,22 @@ import { MarkdownRenderer } from '../MarkdownRenderer';
 
 export const SidekickPanel: React.FC = () => {
     const { messages, input, personality, setInput, sendMessage, setPersonality } = useChatStore();
-    const { isSidebarOpen, setIsSidebarOpen } = useUIStore();
+    const {
+        isSidebarOpen,
+        setIsSidebarOpen,
+        sidekickPosition,
+        sidekickSize,
+        setSidekickPosition,
+        setSidekickSize
+    } = useUIStore();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     // Dragging State
-    const [position, setPosition] = useState({ x: window.innerWidth - 420, y: 80 });
     const [isDragging, setIsDragging] = useState(false);
     const dragOffset = useRef({ x: 0, y: 0 });
 
     // Resizing State
-    const [size, setSize] = useState({ width: 400, height: 600 });
     const [isResizing, setIsResizing] = useState(false);
 
     const scrollToBottom = () => {
@@ -46,8 +51,8 @@ export const SidekickPanel: React.FC = () => {
         if ((e.target as HTMLElement).closest('.resize-handle')) return;
         setIsDragging(true);
         dragOffset.current = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y
+            x: e.clientX - sidekickPosition.x,
+            y: e.clientY - sidekickPosition.y
         };
     };
 
@@ -59,16 +64,16 @@ export const SidekickPanel: React.FC = () => {
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (isDragging) {
-                setPosition({
-                    x: e.clientX - dragOffset.current.x,
-                    y: e.clientY - dragOffset.current.y
-                });
+                setSidekickPosition(
+                    e.clientX - dragOffset.current.x,
+                    e.clientY - dragOffset.current.y
+                );
             }
             if (isResizing) {
-                setSize({
-                    width: Math.max(300, e.clientX - position.x),
-                    height: Math.max(400, e.clientY - position.y)
-                });
+                setSidekickSize(
+                    Math.max(300, e.clientX - sidekickPosition.x),
+                    Math.max(400, e.clientY - sidekickPosition.y)
+                );
             }
         };
 
@@ -86,18 +91,22 @@ export const SidekickPanel: React.FC = () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging, isResizing, position]);
+    }, [isDragging, isResizing, sidekickPosition, setSidekickPosition, setSidekickSize]);
 
-    // Reset position if window resizes significantly or on open
+    // Reset position if window resizes significantly or on open (ensure on screen)
     useEffect(() => {
         if (isSidebarOpen) {
-            // Ensure it's on screen
-            setPosition(prev => ({
-                x: Math.min(Math.max(0, prev.x), window.innerWidth - size.width),
-                y: Math.min(Math.max(0, prev.y), window.innerHeight - size.height)
-            }));
+            const maxX = window.innerWidth - sidekickSize.width;
+            const maxY = window.innerHeight - sidekickSize.height;
+
+            if (sidekickPosition.x > maxX || sidekickPosition.y > maxY) {
+                setSidekickPosition(
+                    Math.min(Math.max(0, sidekickPosition.x), maxX),
+                    Math.min(Math.max(0, sidekickPosition.y), maxY)
+                );
+            }
         }
-    }, [isSidebarOpen, size.width, size.height]);
+    }, [isSidebarOpen, sidekickSize.width, sidekickSize.height]);
 
     if (!isSidebarOpen) return null;
 
@@ -105,10 +114,10 @@ export const SidekickPanel: React.FC = () => {
         <div
             className="fixed z-50 flex flex-col transition-opacity duration-300 ease-out"
             style={{
-                left: position.x,
-                top: position.y,
-                width: size.width,
-                height: size.height,
+                left: sidekickPosition.x,
+                top: sidekickPosition.y,
+                width: sidekickSize.width,
+                height: sidekickSize.height,
                 opacity: isSidebarOpen ? 1 : 0,
                 pointerEvents: isSidebarOpen ? 'auto' : 'none'
             }}
@@ -222,10 +231,10 @@ export const SidekickPanel: React.FC = () => {
 
                     {/* Resize Handle */}
                     <div
-                        className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize resize-handle flex items-end justify-end p-1"
+                        className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize resize-handle flex items-end justify-end p-1.5 hover:bg-white/5 rounded-tl-xl transition-colors"
                         onMouseDown={handleResizeMouseDown}
                     >
-                        <div className="w-2 h-2 bg-slate-500/50 rounded-br-sm"></div>
+                        <div className="w-2 h-2 bg-slate-500/50 rounded-br-sm group-hover:bg-indigo-500 transition-colors"></div>
                     </div>
                 </div>
             </div>

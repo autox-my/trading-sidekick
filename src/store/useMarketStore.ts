@@ -1,39 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { POPULAR_SYMBOLS } from '../utils/constants';
-
-interface Technicals {
-    rsi: number;
-    sma: number;
-    lastPrice: number;
-    avgVolume: number;
-    lastVolume: number;
-    atr: number;
-    regime: string;
-}
-
-interface ChartConfig {
-    upColor: string;
-    downColor: string;
-    upOpacity: number;
-    downOpacity: number;
-    borderUpColor: string;
-    borderDownColor: string;
-    gridVisible: boolean;
-    background: string;
-    smaPeriod: number;
-    smaVisible: boolean;
-    smaColor: string;
-    smaOpacity: number;
-    avKey: string;
-    annotationVisible: boolean;
-    annotationColor: string;
-    annotationOpacity: number;
-    chartType: 'candle' | 'bar' | 'line';
-    marginTop: number;
-    marginBottom: number;
-    marginRight: number;
-}
+import { marketDataService } from '../services/MarketDataService';
+import type {
+    Candle,
+    Technicals,
+    ChartConfig,
+    NewsData,
+    MacroData,
+    MacroCorrelationData,
+    DarkPoolData,
+    MarketStatus,
+    SearchResult,
+    ElliottWave
+} from '../types';
 
 const defaultChartConfig: ChartConfig = {
     upColor: '#22c55e',
@@ -42,8 +21,10 @@ const defaultChartConfig: ChartConfig = {
     downOpacity: 1,
     borderUpColor: '#22c55e',
     borderDownColor: '#ef4444',
+    wickUpColor: '#22c55e',
+    wickDownColor: '#ef4444',
     gridVisible: true,
-    background: '#0f172a',
+    axisVisible: true,
     smaPeriod: 20,
     smaVisible: true,
     smaColor: '#3b82f6',
@@ -61,51 +42,55 @@ const defaultChartConfig: ChartConfig = {
 interface MarketState {
     activeSymbol: string;
     timeframe: string;
-    marketData: any[];
-    technicals: any;
+    marketData: Candle[];
+    technicals: Technicals;
     chartConfig: ChartConfig;
     scannedPatterns: string[];
     dismissedPatterns: string[];
     showSignals: boolean;
-    newsData: any;
-    macroData: any;
-    macroCorrelations: any;
-    darkPoolLevels: any;
-    externalData: any;
+    newsData: NewsData | null;
+    macroData: MacroData | null;
+    macroCorrelations: MacroCorrelationData | null;
+    darkPoolLevels: DarkPoolData | null;
+    externalData: any; // Keep any for now as structure is dynamic
     lastDataUpdate: number;
     priceDir: 'up' | 'down' | 'neutral';
     searchInput: string;
-    searchSuggestions: any[];
+    marketStatus: MarketStatus | null;
+    searchSuggestions: SearchResult[];
     showSuggestions: boolean;
+    dataSource: string;
 
     // Elliott Wave Visualization
-    elliottWaveData: any[];
+    elliottWaveData: ElliottWave[];
     showElliottWaves: boolean;
 
     // Actions
-    // Actions
     setActiveSymbol: (symbol: string) => void;
     setTimeframe: (tf: string) => void;
-    setMarketData: (data: any[]) => void;
-    setTechnicals: (techs: any) => void;
+    setMarketData: (data: Candle[]) => void;
+    setTechnicals: (techs: Technicals) => void;
     setPriceDir: (dir: 'up' | 'down' | 'neutral') => void;
     setChartConfig: (config: ChartConfig) => void;
     setScannedPatterns: (patterns: string[]) => void;
     setDismissedPatterns: (patterns: string[] | ((prev: string[]) => string[])) => void;
     setShowSignals: (show: boolean) => void;
-    setNewsData: (data: any) => void;
-    setMacroData: (data: any) => void;
-    setMacroCorrelations: (data: any) => void;
-    setDarkPoolLevels: (data: any) => void;
+    setNewsData: (data: NewsData | null) => void;
+    setMacroData: (data: MacroData | null) => void;
+    setMacroCorrelations: (data: MacroCorrelationData | null) => void;
+    setDarkPoolLevels: (data: DarkPoolData | null) => void;
     setExternalData: (data: any) => void;
-    setLastDataUpdate: (timestamp: any) => void;
+    setLastDataUpdate: (timestamp: number) => void;
+    setMarketStatus: (status: MarketStatus | null) => void;
     setSearchInput: (input: string) => void;
-    setSearchSuggestions: (suggestions: any[]) => void;
+    setSearchSuggestions: (suggestions: SearchResult[]) => void;
     setShowSuggestions: (show: boolean) => void;
     handleSearch: (e: React.FormEvent) => void;
+    setDataSource: (source: string) => void;
+    searchSymbols: (query: string) => Promise<void>;
 
     // Elliott Wave Actions
-    setElliottWaveData: (data: any[]) => void;
+    setElliottWaveData: (data: ElliottWave[]) => void;
     setShowElliottWaves: (show: boolean) => void;
 }
 
@@ -113,9 +98,9 @@ export const useMarketStore = create<MarketState>()(
     persist(
         (set, get) => ({
             activeSymbol: 'SPY',
-            timeframe: '1D',
+            timeframe: '1d',
             marketData: [],
-            technicals: { lastPrice: 0, rsi: 0, sma: 0, atr: 0, regime: 'Neutral' },
+            technicals: { lastPrice: 0, rsi: 0, sma: 0, atr: 0, regime: 'Neutral', avgVolume: 0, lastVolume: 0 },
             chartConfig: defaultChartConfig,
             scannedPatterns: [],
             dismissedPatterns: [],
@@ -128,8 +113,10 @@ export const useMarketStore = create<MarketState>()(
             lastDataUpdate: 0,
             priceDir: 'neutral',
             searchInput: '',
+            marketStatus: null,
             searchSuggestions: [],
             showSuggestions: false,
+            dataSource: 'Initializing...',
 
             elliottWaveData: [],
             showElliottWaves: true,
@@ -152,6 +139,7 @@ export const useMarketStore = create<MarketState>()(
             setMacroCorrelations: (data) => set({ macroCorrelations: data }),
             setDarkPoolLevels: (data) => set({ darkPoolLevels: data }),
             setExternalData: (data) => set({ externalData: data }),
+            setMarketStatus: (status) => set({ marketStatus: status }),
             setSearchInput: (input) => set({ searchInput: input }),
             setSearchSuggestions: (suggestions) => set({ searchSuggestions: suggestions }),
             setShowSuggestions: (show) => set({ showSuggestions: show }),
@@ -162,6 +150,20 @@ export const useMarketStore = create<MarketState>()(
                     set({ activeSymbol: searchInput.toUpperCase(), searchInput: '', showSuggestions: false });
                 }
             },
+            setDataSource: (source) => set({ dataSource: source }),
+            searchSymbols: async (query) => {
+                if (!query.trim()) {
+                    set({ searchSuggestions: [], showSuggestions: false });
+                    return;
+                }
+                try {
+                    const results = await marketDataService.searchSymbols(query);
+                    set({ searchSuggestions: results, showSuggestions: true });
+                } catch (e) {
+                    console.error("Search failed", e);
+                    set({ searchSuggestions: [], showSuggestions: false });
+                }
+            },
 
             setElliottWaveData: (data) => set({ elliottWaveData: data }),
             setShowElliottWaves: (show) => set({ showElliottWaves: show })
@@ -170,7 +172,9 @@ export const useMarketStore = create<MarketState>()(
             name: 'market-storage',
             partialize: (state) => ({
                 timeframe: state.timeframe,
-                chartConfig: state.chartConfig
+                chartConfig: state.chartConfig,
+                macroData: state.macroData,
+                marketStatus: state.marketStatus
             }),
         }
     )

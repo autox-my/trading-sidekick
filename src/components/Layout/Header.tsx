@@ -7,7 +7,7 @@ import {
     UploadCloud,
     MonitorPlay
 } from 'lucide-react';
-import { TIMEFRAMES, POPULAR_SYMBOLS } from '../../utils/constants';
+import { TIMEFRAMES } from '../../utils/constants';
 import { useUIStore } from '../../store/useUIStore';
 import { useMarketStore } from '../../store/useMarketStore';
 import { processDarkPoolData } from '../../utils/darkpool';
@@ -27,13 +27,15 @@ export const Header: React.FC = () => {
     const searchInput = useMarketStore(state => state.searchInput);
     const setSearchInput = useMarketStore(state => state.setSearchInput);
     const searchSuggestions = useMarketStore(state => state.searchSuggestions);
-    const setSearchSuggestions = useMarketStore(state => state.setSearchSuggestions);
     const showSuggestions = useMarketStore(state => state.showSuggestions);
     const setShowSuggestions = useMarketStore(state => state.setShowSuggestions);
+    const searchSymbols = useMarketStore(state => state.searchSymbols);
     const timeframe = useMarketStore(state => state.timeframe);
     const setTimeframe = useMarketStore(state => state.setTimeframe);
     const darkPoolLevels = useMarketStore(state => state.darkPoolLevels);
     const setDarkPoolLevels = useMarketStore(state => state.setDarkPoolLevels);
+    const marketStatus = useMarketStore(state => state.marketStatus);
+    const dataSource = useMarketStore(state => state.dataSource);
 
     const { addMessage } = useChatStore();
 
@@ -51,17 +53,20 @@ export const Header: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [setShowSuggestions]);
 
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchInput.length > 1) {
+                searchSymbols(searchInput);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchInput, searchSymbols]);
+
     const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setSearchInput(value);
-        if (value.length > 0) {
-            const filtered = POPULAR_SYMBOLS.filter((item: any) =>
-                item.symbol.toLowerCase().includes(value.toLowerCase()) ||
-                item.name.toLowerCase().includes(value.toLowerCase())
-            ).slice(0, 6);
-            setSearchSuggestions(filtered);
-            setShowSuggestions(true);
-        } else {
+        if (value.length === 0) {
             setShowSuggestions(false);
         }
     };
@@ -116,9 +121,12 @@ export const Header: React.FC = () => {
                     {showSuggestions && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 max-h-60 overflow-y-auto">
                             {searchSuggestions.map((item: any, i: number) => (
-                                <button key={i} onClick={() => selectSymbol(item.symbol)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-800 flex justify-between items-center group">
-                                    <span className="font-bold text-white">{item.symbol}</span>
-                                    <span className="text-slate-500 group-hover:text-slate-300 truncate max-w-[120px]">{item.name}</span>
+                                <button key={i} onClick={() => selectSymbol(item.symbol)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-800 flex justify-between items-center group border-b border-white/5 last:border-0">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-white text-sm">{item.symbol}</span>
+                                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">{item.exchange} • {item.type}</span>
+                                    </div>
+                                    <span className="text-slate-400 group-hover:text-slate-200 truncate max-w-[120px] text-right">{item.name}</span>
                                 </button>
                             ))}
                         </div>
@@ -142,9 +150,20 @@ export const Header: React.FC = () => {
                 </div>
             </div>
             <div className="flex items-center gap-4 ml-6 shrink-0">
-                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-950/50 border border-white/5 rounded-full ${connectionStatus === 'live' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${connectionStatus === 'live' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500'}`}></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{connectionStatus === 'live' ? 'Live Feed' : 'Simulated'}</span>
+                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-950/50 border border-white/5 rounded-full ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'text-emerald-400' : 'text-amber-400') : (connectionStatus === 'live' ? 'text-emerald-400' : 'text-amber-400')}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500') : (connectionStatus === 'live' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500')}`}></div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                        {marketStatus?.current_status
+                            ? (marketStatus.current_status === 'open' ? 'Market Open' : 'Market Closed')
+                            : (connectionStatus === 'live' ? 'Live Feed' : 'Simulated')}
+                    </span>
+                </div>
+                {/* Data Source Indicator */}
+                <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-slate-950/50 border border-white/5 rounded-full text-slate-400">
+                    <span className="text-[10px] font-medium tracking-wider uppercase">Source:</span>
+                    <span className="text-[10px] font-bold text-indigo-400 tracking-wider uppercase truncate max-w-[150px]" title={dataSource}>
+                        {dataSource || 'Initializing...'}
+                    </span>
                 </div>
                 <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors">
                     {isSidebarOpen ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
