@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, type IChartApi, type ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, LineStyle, type IChartApi, type ISeriesApi } from 'lightweight-charts';
 import { useMarketStore } from '../store/useMarketStore';
 import { useUIStore } from '../store/useUIStore';
 import { calculateSMASeries, calculatePivotPoints } from '../utils/calculations';
@@ -21,6 +21,8 @@ export const useChart = (containerRef: React.RefObject<HTMLDivElement | null>) =
     const chartInstance = useRef<IChartApi | null>(null);
     const mainSeries = useRef<ISeriesApi<"Candlestick" | "Bar" | "Line"> | null>(null);
     const smaSeries = useRef<ISeriesApi<"Line"> | null>(null);
+    const waveSeries = useRef<ISeriesApi<"Line"> | null>(null);
+    const projectionSeries = useRef<ISeriesApi<"Line"> | null>(null);
     const annotationLinesRef = useRef<any[]>([]);
     const hoveredCandleRef = useRef<any>(null);
     const levelsRef = useRef<{ support: number | null, resistance: number | null, darkPools: any[] }>({ support: null, resistance: null, darkPools: [] });
@@ -114,6 +116,26 @@ export const useChart = (containerRef: React.RefObject<HTMLDivElement | null>) =
                     lastValueVisible: false,
                     priceLineVisible: false
                 });
+
+                waveSeries.current = chartInstance.current.addLineSeries({
+                    color: '#3b82f6',
+                    lineWidth: 1,
+                    lineStyle: LineStyle.Dashed,
+                    visible: true,
+                    lastValueVisible: false,
+                    priceLineVisible: false,
+                    crosshairMarkerVisible: false
+                });
+
+                projectionSeries.current = chartInstance.current.addLineSeries({
+                    color: '#f97316',
+                    lineWidth: 1,
+                    lineStyle: LineStyle.Dotted,
+                    visible: true,
+                    lastValueVisible: false,
+                    priceLineVisible: false,
+                    crosshairMarkerVisible: false
+                });
             } catch (e) {
                 console.error("Chart initialization failed:", e);
                 setChartConfig({
@@ -133,6 +155,8 @@ export const useChart = (containerRef: React.RefObject<HTMLDivElement | null>) =
                 chartInstance.current = null;
                 mainSeries.current = null;
                 smaSeries.current = null;
+                waveSeries.current = null;
+                projectionSeries.current = null;
             }
         };
     }, []);
@@ -308,8 +332,91 @@ export const useChart = (containerRef: React.RefObject<HTMLDivElement | null>) =
                 return tA - tB;
             });
             mainSeries.current.setMarkers(markers as any);
+
+            // Update Wave Line Series
+            if (waveSeries.current && projectionSeries.current) {
+                // Separate confirmed waves and projections
+                const confirmedWaves = elliottWaveData.filter(w => !w.isProjection);
+                const projection = elliottWaveData.find(w => w.isProjection);
+
+                // Confirmed Waves Data
+                const lineData = confirmedWaves.map((wave: any) => ({
+                    time: wave.time,
+                    value: wave.price
+                })).sort((a: any, b: any) => {
+                    const tA = typeof a.time === 'string' ? new Date(a.time).getTime() : a.time;
+                    const tB = typeof b.time === 'string' ? new Date(b.time).getTime() : b.time;
+                    return tA - tB;
+                });
+
+                waveSeries.current.setData(lineData as any);
+                waveSeries.current.applyOptions({ visible: true });
+
+                // Projection Data
+                const projectionData = [];
+                if (projection && lineData.length > 0) {
+                    // Connect last confirmed point to projection
+                    const lastConfirmed = lineData[lineData.length - 1];
+                    projectionData.push(lastConfirmed);
+                    projectionData.push({
+                        time: projection.time,
+                        value: projection.price
+                    });
+                }
+                projectionSeries.current.setData(projectionData as any);
+                projectionSeries.current.applyOptions({ visible: true });
+
+                // Update markers
+                const getMarkerColor = (degree?: string) => {
+                    switch (degree) {
+                        case 'minor': return '#9333ea'; // Purple
+                        case 'minute': return '#2563eb'; // Blue
+                        case 'minuette': return '#16a34a'; // Green
+                        case 'subminuette': return '#9ca3af'; // Gray
+                        default: return '#3b82f6';
+                    }
+                };
+
+                const getMarkerSize = (degree?: string) => {
+                    switch (degree) {
+                        case 'minor': return 2;
+                        case 'minute': return 1;
+                        case 'minuette': return 0; // Smallest
+                        case 'subminuette': return 0;
+                        default: return 1;
+                    }
+                };
+
+                const markers = confirmedWaves.map((wave: any) => ({
+                    time: wave.time,
+                    position: wave.type === 'low' ? 'belowBar' : 'aboveBar',
+                    color: getMarkerColor(wave.degree),
+                    shape: 'circle',
+                    text: wave.label,
+                    size: getMarkerSize(wave.degree)
+                }));
+
+                const projectionMarkers = projection ? [{
+                    time: projection.time,
+                    position: projection.type === 'low' ? 'belowBar' : 'aboveBar',
+                    color: '#f97316', // Orange for projection
+                    shape: 'circle',
+                    text: projection.label,
+                    size: getMarkerSize(projection.degree)
+                }] : [];
+
+                const allMarkers = [...markers, ...projectionMarkers].sort((a: any, b: any) => {
+                    const tA = typeof a.time === 'string' ? new Date(a.time).getTime() : a.time;
+                    const tB = typeof b.time === 'string' ? new Date(b.time).getTime() : b.time;
+                    return tA - tB;
+                });
+
+                mainSeries.current.setMarkers(allMarkers as any);
+            }
         } else {
             mainSeries.current.setMarkers([]);
+            if (waveSeries.current) waveSeries.current.setData([]);
+            if (projectionSeries.current) projectionSeries.current.setData([]);
         }
 
     }, [chartConfig.annotationVisible, marketData, darkPoolLevels, viewMode, activeSymbol, timeframe, chartConfig.chartType, showElliottWaves, elliottWaveData]);

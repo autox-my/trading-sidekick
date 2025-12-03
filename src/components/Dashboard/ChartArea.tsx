@@ -1,9 +1,12 @@
 import React, { useRef } from 'react';
 import {
     HelpCircle,
-    Sparkles
+    Sparkles,
+    Activity,
+    X
 } from 'lucide-react';
 import { useUIStore } from '../../store/useUIStore';
+import { useMarketStore } from '../../store/useMarketStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useChart } from '../../hooks/useChart';
 
@@ -57,6 +60,34 @@ export const ChartArea: React.FC = () => {
                         }
                     }}>
                         <Sparkles size={16} className="text-indigo-400" /> Ask Sidekick
+                    </button>
+                    <button className="w-full text-left px-4 py-3 text-xs font-medium text-text-primary hover:bg-indigo-600/20 hover:text-indigo-300 flex items-center gap-3 transition-colors" onClick={(e) => {
+                        e.stopPropagation();
+                        setContextMenu({ ...contextMenu, visible: false });
+                        if (contextMenu.data) {
+                            // Find index of clicked candle
+                            const marketData = useMarketStore.getState().marketData;
+                            const clickedTime = contextMenu.data.time;
+                            const index = marketData.findIndex(d => d.time === clickedTime);
+
+                            if (index !== -1) {
+                                import('../../utils/elliottWave').then(({ findElliottWaves }) => {
+                                    const waves = findElliottWaves(marketData, index);
+                                    useMarketStore.getState().setElliottWaveData(waves);
+                                    useMarketStore.getState().setShowElliottWaves(true);
+                                });
+                            }
+                        }
+                    }}>
+                        <Activity size={16} className="text-blue-400" /> Count Elliott Waves
+                    </button>
+                    <button className="w-full text-left px-4 py-3 text-xs font-medium text-text-primary hover:bg-indigo-600/20 hover:text-indigo-300 flex items-center gap-3 transition-colors" onClick={(e) => {
+                        e.stopPropagation();
+                        setContextMenu({ ...contextMenu, visible: false });
+                        useMarketStore.getState().setElliottWaveData([]);
+                        useMarketStore.getState().setShowElliottWaves(false);
+                    }}>
+                        <X size={16} className="text-red-400" /> Clear Elliott Waves
                     </button>
                 </div>
             )}

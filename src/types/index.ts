@@ -126,4 +126,7 @@ export interface ElliottWave {
     time: string | number;
     price: number;
     description?: string;
+    isProjection?: boolean;
+    type?: 'high' | 'low';
+    degree?: 'subminuette' | 'minuette' | 'minute' | 'minor';
 }
