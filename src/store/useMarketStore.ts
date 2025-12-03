@@ -11,7 +11,8 @@ import type {
     DarkPoolData,
     MarketStatus,
     SearchResult,
-    ElliottWave
+    ElliottWave,
+    PlaybookSetup
 } from '../types';
 
 const defaultChartConfig: ChartConfig = {
@@ -65,6 +66,9 @@ interface MarketState {
     elliottWaveData: ElliottWave[];
     showElliottWaves: boolean;
 
+    // Playbook
+    playbookSetup: PlaybookSetup | null;
+
     // Actions
     setActiveSymbol: (symbol: string) => void;
     setTimeframe: (tf: string) => void;
@@ -92,6 +96,9 @@ interface MarketState {
     // Elliott Wave Actions
     setElliottWaveData: (data: ElliottWave[]) => void;
     setShowElliottWaves: (show: boolean) => void;
+
+    // Playbook Actions
+    setPlaybookSetup: (setup: PlaybookSetup | null) => void;
 }
 
 export const useMarketStore = create<MarketState>()(
@@ -120,6 +127,7 @@ export const useMarketStore = create<MarketState>()(
 
             elliottWaveData: [],
             showElliottWaves: true,
+            playbookSetup: null,
 
             setActiveSymbol: (symbol) => set({ activeSymbol: symbol }),
             setTimeframe: (tf) => set({ timeframe: tf }),
@@ -166,7 +174,8 @@ export const useMarketStore = create<MarketState>()(
             },
 
             setElliottWaveData: (data) => set({ elliottWaveData: data }),
-            setShowElliottWaves: (show) => set({ showElliottWaves: show })
+            setShowElliottWaves: (show) => set({ showElliottWaves: show }),
+            setPlaybookSetup: (setup) => set({ playbookSetup: setup })
         }),
         {
             name: 'market-storage',

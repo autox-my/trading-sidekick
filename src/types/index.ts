@@ -130,3 +130,13 @@ export interface ElliottWave {
     type?: 'high' | 'low';
     degree?: 'subminuette' | 'minuette' | 'minute' | 'minor';
 }
+
+export interface PlaybookSetup {
+    type: 'SCALP' | 'SWING';
+    direction: 'LONG' | 'SHORT';
+    entry: number;
+    stopLoss: number;
+    target: number;
+    probability: number; // 0-100
+    reasoning: string;
+}

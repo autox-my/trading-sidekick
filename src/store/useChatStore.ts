@@ -168,6 +168,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
 
+    // Parse Playbook Data
+    if (mode === 'playbook') {
+      console.log("Analyzing Playbook response...");
+      const playbookJsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?"playbook"[\s\S]*?\})\s*```/i);
+
+      if (playbookJsonMatch) {
+        try {
+          const data = JSON.parse(playbookJsonMatch[1]);
+          if (data.playbook) {
+            console.log("Setting Playbook Setup in Store:", data.playbook);
+            useMarketStore.getState().setPlaybookSetup(data.playbook);
+          }
+        } catch (e) { console.error("Failed to parse playbook JSON", e); }
+      }
+    }
+
     addMessage({ role: 'assistant', text, suggestions });
     useUIStore.getState().setIsLoading(false);
   }

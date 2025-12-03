@@ -15,7 +15,8 @@ export const useChart = (containerRef: React.RefObject<HTMLDivElement | null>) =
         activeSymbol,
         timeframe,
         showElliottWaves,
-        elliottWaveData
+        elliottWaveData,
+        playbookSetup
     } = useMarketStore();
 
     const chartInstance = useRef<IChartApi | null>(null);
@@ -419,7 +420,42 @@ export const useChart = (containerRef: React.RefObject<HTMLDivElement | null>) =
             if (projectionSeries.current) projectionSeries.current.setData([]);
         }
 
-    }, [chartConfig.annotationVisible, marketData, darkPoolLevels, viewMode, activeSymbol, timeframe, chartConfig.chartType, showElliottWaves, elliottWaveData]);
+        // Playbook Lines
+        if (useMarketStore.getState().playbookSetup && marketData.length > 0) {
+            const setup = useMarketStore.getState().playbookSetup;
+            if (setup) {
+                const entryLine = mainSeries.current.createPriceLine({
+                    price: setup.entry,
+                    title: `ENTRY (${setup.direction})`,
+                    color: '#3b82f6', // Blue
+                    lineWidth: 2,
+                    lineStyle: LineStyle.Solid,
+                    axisLabelVisible: true
+                });
+                const stopLine = mainSeries.current.createPriceLine({
+                    price: setup.stopLoss,
+                    title: 'STOP',
+                    color: '#ef4444', // Red
+                    lineWidth: 2,
+                    lineStyle: LineStyle.Dashed,
+                    axisLabelVisible: true
+                });
+                const targetLine = mainSeries.current.createPriceLine({
+                    price: setup.target,
+                    title: 'TARGET',
+                    color: '#22c55e', // Green
+                    lineWidth: 2,
+                    lineStyle: LineStyle.Dashed,
+                    axisLabelVisible: true
+                });
+
+                annotationLinesRef.current.push(entryLine);
+                annotationLinesRef.current.push(stopLine);
+                annotationLinesRef.current.push(targetLine);
+            }
+        }
+
+    }, [chartConfig.annotationVisible, marketData, darkPoolLevels, viewMode, activeSymbol, timeframe, chartConfig.chartType, showElliottWaves, elliottWaveData, playbookSetup]);
 
     // Auto Fit
     useEffect(() => {

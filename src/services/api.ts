@@ -286,6 +286,36 @@ export const callGemini = async (userQuery: string, contextData: any, personalit
     } else if (mode === 'devil') {
         modeHeader = "😈 DEVIL'S ADVOCATE / RISK MANAGER";
         modeInstruction = "Act as a skeptical Risk Manager. Ignore confirmation bias. Aggressively search for bearish signals (or bullish if short). What can go wrong? Stress test the bullish thesis.";
+    } else if (mode === 'playbook') {
+        modeHeader = "📘 TRADING PLAYBOOK GENERATOR";
+        modeInstruction = `
+            You are an elite Trading Strategist.
+            Analyze the market data and generate a high-probability trade setup.
+            
+            1. Determine the best setup type: SCALP (short-term) or SWING (multi-day).
+            2. Determine direction: LONG or SHORT.
+            3. Define precise Entry, Stop Loss, and Target levels.
+            4. Estimate the Probability of Success (0-100%).
+            
+            CRITICAL OUTPUT FORMAT:
+            You must include a JSON block at the end of your response containing the setup details.
+            The JSON must follow this exact schema:
+            \`\`\`json
+            {
+              "playbook": {
+                "type": "SCALP", 
+                "direction": "LONG",
+                "entry": 100.50,
+                "stopLoss": 99.00,
+                "target": 105.00,
+                "probability": 75,
+                "reasoning": "Strong support bounce with bullish divergence."
+              }
+            }
+            \`\`\`
+            
+            Provide a brief text explanation before the JSON block.
+        `;
     } else {
         modeHeader = "STANDARD ANALYST";
         modeInstruction = "Provide a professional, balanced technical and fundamental analysis.";

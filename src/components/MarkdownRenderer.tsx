@@ -1,4 +1,5 @@
-import { Terminal } from 'lucide-react';
+import { Terminal, Activity } from 'lucide-react';
+import { useMarketStore } from '../store/useMarketStore';
 
 const parseInline = (text: string) => {
     if (typeof text !== 'string') return text;
@@ -54,19 +55,17 @@ const TableBlock = ({ lines }: { lines: string[] }) => {
 };
 
 const PlaybookCard = ({ data }: { data: any }) => {
+    const { setPlaybookSetup } = useMarketStore();
+
     return (
         <div className="my-4 bg-secondary/80 border border-indigo-500/20 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(99,102,241,0.1)] animate-popIn font-sans">
             <div className="bg-secondary/50 px-4 py-2.5 border-b border-indigo-500/20 flex justify-between items-center">
                 <div className="flex items-center gap-2 text-indigo-300 font-bold text-[10px] uppercase tracking-widest">
-                    <Terminal size={12} className="text-indigo-400" /> Trade Plan
+                    <Terminal size={12} className="text-indigo-400" /> {data.type} Setup ({data.direction})
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[9px] text-text-secondary uppercase font-bold tracking-wider">CONFIDENCE</span>
-                    <div className="flex gap-0.5">
-                        {[...Array(10)].map((_, i) => (
-                            <div key={i} className={`w-1 h-2 rounded-sm transition-all duration-500 ${i < data.conviction ? (data.conviction >= 8 ? 'bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.5)]' : data.conviction >= 5 ? 'bg-amber-400' : 'bg-rose-400') : 'bg-slate-700/50'}`} />
-                        ))}
-                    </div>
+                    <span className="text-[9px] text-text-secondary uppercase font-bold tracking-wider">PROBABILITY</span>
+                    <div className="text-xs font-bold text-emerald-400">{data.probability}%</div>
                 </div>
             </div>
             <div className="p-5 space-y-4">
@@ -77,7 +76,7 @@ const PlaybookCard = ({ data }: { data: any }) => {
                     </div>
                     <div className="bg-secondary/40 border border-rose-500/20 p-3 rounded hover:bg-rose-500/10 transition-all group">
                         <div className="text-[9px] text-rose-500/80 uppercase font-bold mb-1 tracking-widest group-hover:text-rose-400">STOP</div>
-                        <div className="text-xs font-bold text-rose-400 font-mono">{data.stop}</div>
+                        <div className="text-xs font-bold text-rose-400 font-mono">{data.stopLoss}</div>
                     </div>
                     <div className="bg-secondary/40 border border-blue-500/20 p-3 rounded hover:bg-blue-500/10 transition-all group">
                         <div className="text-[9px] text-blue-500/80 uppercase font-bold mb-1 tracking-widest group-hover:text-blue-400">TARGET</div>
@@ -90,6 +89,13 @@ const PlaybookCard = ({ data }: { data: any }) => {
                         {data.reasoning}
                     </div>
                 )}
+
+                <button
+                    onClick={() => setPlaybookSetup(data)}
+                    className="w-full py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 text-xs font-bold uppercase tracking-wider rounded-lg border border-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                >
+                    <Activity size={14} /> Show on Chart
+                </button>
             </div>
         </div>
     );
@@ -100,10 +106,16 @@ export const MarkdownRenderer = ({ content }: { content: string }) => {
 
     const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
 
-    if (cleanContent.startsWith('{') && cleanContent.includes('"entry"')) {
+    if (cleanContent.startsWith('{') && (cleanContent.includes('"playbook"') || cleanContent.includes('"entry"'))) {
         try {
             const data = JSON.parse(cleanContent);
-            return <PlaybookCard data={data} />;
+            if (data.playbook) {
+                return <PlaybookCard data={data.playbook} />;
+            }
+            // Fallback for old format if any
+            if (data.entry) {
+                return <PlaybookCard data={data} />;
+            }
         } catch (e) { }
     }
 
