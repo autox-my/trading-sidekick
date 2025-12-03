@@ -13,6 +13,7 @@ interface Pivot {
     price: number;
     type: 'high' | 'low';
     time: number | string;
+    volume?: number; // Added volume
 }
 
 export const calculateZigZag = (candles: any[], deviation: number = 5): Pivot[] => {
@@ -24,34 +25,35 @@ export const calculateZigZag = (candles: any[], deviation: number = 5): Pivot[] 
         const currentHigh = candles[i].high;
         const currentLow = candles[i].low;
         const currentTime = candles[i].time;
+        const currentVolume = candles[i].volume;
 
         if (lastPivotType === null) {
             if (currentHigh > lastPivotPrice * (1 + deviation / 100)) {
                 lastPivotType = 'high';
                 lastPivotPrice = currentHigh;
-                pivots.push({ index: i, price: currentHigh, type: 'high', time: currentTime });
+                pivots.push({ index: i, price: currentHigh, type: 'high', time: currentTime, volume: currentVolume });
             } else if (currentLow < lastPivotPrice * (1 - deviation / 100)) {
                 lastPivotType = 'low';
                 lastPivotPrice = currentLow;
-                pivots.push({ index: i, price: currentLow, type: 'low', time: currentTime });
+                pivots.push({ index: i, price: currentLow, type: 'low', time: currentTime, volume: currentVolume });
             }
         } else if (lastPivotType === 'high') {
             if (currentHigh > lastPivotPrice) {
                 lastPivotPrice = currentHigh;
-                pivots[pivots.length - 1] = { index: i, price: currentHigh, type: 'high', time: currentTime };
+                pivots[pivots.length - 1] = { index: i, price: currentHigh, type: 'high', time: currentTime, volume: currentVolume };
             } else if (currentLow < lastPivotPrice * (1 - deviation / 100)) {
                 lastPivotType = 'low';
                 lastPivotPrice = currentLow;
-                pivots.push({ index: i, price: currentLow, type: 'low', time: currentTime });
+                pivots.push({ index: i, price: currentLow, type: 'low', time: currentTime, volume: currentVolume });
             }
         } else if (lastPivotType === 'low') {
             if (currentLow < lastPivotPrice) {
                 lastPivotPrice = currentLow;
-                pivots[pivots.length - 1] = { index: i, price: currentLow, type: 'low', time: currentTime };
+                pivots[pivots.length - 1] = { index: i, price: currentLow, type: 'low', time: currentTime, volume: currentVolume };
             } else if (currentHigh > lastPivotPrice * (1 + deviation / 100)) {
                 lastPivotType = 'high';
                 lastPivotPrice = currentHigh;
-                pivots.push({ index: i, price: currentHigh, type: 'high', time: currentTime });
+                pivots.push({ index: i, price: currentHigh, type: 'high', time: currentTime, volume: currentVolume });
             }
         }
     }
@@ -81,15 +83,14 @@ const validateImpulse = (pivots: Pivot[], isBullish: boolean): boolean => {
     if (w3 < w1 && w3 < w5) return false;
 
     // Rule 3: Wave 4 cannot overlap Wave 1 (Impulse)
-    // Note: Diagonals allow overlap, but we are strict for now
     if (isBullish && p4 <= p1) return false;
     if (!isBullish && p4 >= p1) return false;
 
-    // Direction checks (ZigZag guarantees alternating, but check overall direction)
+    // Direction checks
     if (isBullish) {
-        if (p1 <= p0 || p3 <= p2 || p5 <= p4) return false; // Moves must be up
+        if (p1 <= p0 || p3 <= p2 || p5 <= p4) return false;
     } else {
-        if (p1 >= p0 || p3 >= p2 || p5 >= p4) return false; // Moves must be down
+        if (p1 >= p0 || p3 >= p2 || p5 >= p4) return false;
     }
 
     return true;
@@ -103,26 +104,17 @@ const validateCorrection = (pivots: Pivot[], isBullish: boolean): boolean => {
     const pB = pivots[2].price;
     const pC = pivots[3].price;
 
-    // Wave B vs A (Retracement)
-    // B usually retraces A. In ZigZag, B < Start of A.
-    // If B goes beyond Start of A, it's an Expanded Flat (valid but rare in simple logic)
-    // Let's enforce standard ZigZag: B does not retrace 100% of A
-    // Actually, correction is against the trend.
-    // If "isBullish" means the larger trend is up, then Correction is DOWN.
-    // So p0 -> pA is DOWN.
-
     // Direction Check
-    // If trend is Bullish, Correction is Bearish (Down-Up-Down)
     if (isBullish) {
-        if (pA >= p0) return false; // A must be down
-        if (pB <= pA) return false; // B must be up
-        if (pB >= p0) return false; // B usually doesn't exceed start of A (Regular ZigZag)
-        if (pC >= pB) return false; // C must be down
+        if (pA >= p0) return false;
+        if (pB <= pA) return false;
+        if (pB >= p0) return false;
+        if (pC >= pB) return false;
     } else {
-        if (pA <= p0) return false; // A must be up
-        if (pB >= pA) return false; // B must be down
+        if (pA <= p0) return false;
+        if (pB >= pA) return false;
         if (pB <= p0) return false;
-        if (pC <= pB) return false; // C must be up
+        if (pC <= pB) return false;
     }
 
     return true;
@@ -151,12 +143,30 @@ const scoreImpulse = (pivots: Pivot[]): number => {
         if (ratio > 0.55 && ratio < 0.7) score += 1; // 0.618
     }
 
-    // Guideline 3: Alternation (Time)
-    // Wave 2 time vs Wave 4 time
-    const t0 = typeof pivots[0].time === 'number' ? pivots[0].time : 0;
-    const t2 = typeof pivots[2].time === 'number' ? pivots[2].time : 0;
-    const t4 = typeof pivots[4].time === 'number' ? pivots[4].time : 0;
-    // ... simplistic time check if available
+    // Guideline 3: Alternation (Time/Complexity)
+    // Compare Wave 2 (p1->p2) and Wave 4 (p3->p4)
+    const t1 = pivots[1].index;
+    const t2 = pivots[2].index;
+    const t3 = pivots[3].index;
+    const t4 = pivots[4].index;
+
+    const w2Duration = Math.abs(t2 - t1);
+    const w4Duration = Math.abs(t4 - t3);
+
+    // If one is significantly longer (2x) than the other, we have alternation in time
+    if (w2Duration > w4Duration * 1.5 || w4Duration > w2Duration * 1.5) {
+        score += 1;
+    }
+
+    // Guideline 4: Volume
+    // Wave 3 volume should be > Wave 5 volume (unless W5 extended)
+    // We use the volume at the pivot point as a proxy for the wave's peak volume
+    const v3 = pivots[3].volume || 0; // Peak of Wave 3
+    const v5 = pivots[5].volume || 0; // Peak of Wave 5
+
+    if (v3 > v5) {
+        score += 1;
+    }
 
     // Fibonacci Targets
     // W3 ~ 1.618 W1
@@ -236,6 +246,17 @@ export const findElliottWaves = (candles: any[], startIndex: number): WavePoint[
         let chainWaves: WavePoint[] = [];
         let chainScore = 0;
 
+        // Add Start Point (Wave 0) to allow length calculations
+        // We won't display a marker for this, but it's needed for math
+        chainWaves.push({
+            time: pivots[currentIdx].time,
+            price: pivots[currentIdx].price,
+            label: 'Start',
+            waveLevel: 0,
+            type: pivots[currentIdx].type,
+            degree: currentDegree
+        });
+
         while (currentIdx < pivots.length - 1) {
             const remaining = pivots.slice(currentIdx);
             if (remaining.length < 2) break;
@@ -285,14 +306,10 @@ export const findElliottWaves = (candles: any[], startIndex: number): WavePoint[
                 }
             }
 
-            // 3. Try Partial/Tail Patterns (if we are near the end)
-            // If we have fewer than 6 pivots left, we might have a partial impulse
+            // 3. Try Partial/Tail Patterns
             const partialImpulseCount = validatePartialImpulse(remaining, isBullish);
             if (partialImpulseCount > 0) {
-                // Only accept partials if they consume the REST of the pivots
-                // or if they are substantial (e.g. at least 3 waves)
                 const isTail = (currentIdx + partialImpulseCount + 1) >= pivots.length;
-
                 if (isTail || partialImpulseCount >= 3) {
                     chainScore += partialImpulseCount * 2;
                     for (let i = 1; i <= partialImpulseCount; i++) {
@@ -310,7 +327,6 @@ export const findElliottWaves = (candles: any[], startIndex: number): WavePoint[
                 }
             }
 
-            // If nothing matches, skip one pivot and penalize
             currentIdx++;
             chainScore -= 2;
         }
@@ -321,31 +337,124 @@ export const findElliottWaves = (candles: any[], startIndex: number): WavePoint[
         }
     }
 
-    // --- Projections ---
-    if (bestChain.length > 0) {
+    // --- Advanced Projections ---
+    if (bestChain.length >= 2) { // Need at least Start + 1 point
         const lastWave = bestChain[bestChain.length - 1];
+        const lastIdx = bestChain.length - 1;
         const lastType = lastWave.type;
         const isBullishNext = lastType === 'low';
-
         const lastLabel = lastWave.label;
+
         let projLabel = '';
         let projTarget = 0;
 
+        // Helper to get price of previous waves in the CURRENT pattern
+        // We assume the chain is sequential.
+        const getPrice = (offset: number) => bestChain[lastIdx + offset]?.price;
+
         if (lastLabel === '3') {
+            // Project Wave 4
+            // Guideline: 38.2% retrace of Wave 3
+            // Rule: No overlap with Wave 1
             projLabel = '4 (Proj)';
-            projTarget = isBullishNext ? lastWave.price * 1.05 : lastWave.price * 0.95;
+            const p3 = getPrice(0); // End of W3
+            const p2 = getPrice(-1); // End of W2 (Start of W3)
+            const p1 = getPrice(-2); // End of W1
+
+            if (p3 !== undefined && p2 !== undefined && p1 !== undefined) {
+                const w3Len = Math.abs(p3 - p2);
+                const isBullishImpulse = p3 > p2;
+
+                // Default Target: 38.2% Retrace
+                let target = isBullishImpulse ? p3 - (w3Len * 0.382) : p3 + (w3Len * 0.382);
+
+                // Rule: No Overlap with W1
+                if (isBullishImpulse) {
+                    if (target < p1) target = p1 * 1.001; // Clamp to just above W1
+                } else {
+                    if (target > p1) target = p1 * 0.999; // Clamp to just below W1
+                }
+
+                projTarget = target;
+            } else {
+                // Fallback
+                projTarget = isBullishNext ? lastWave.price * 1.05 : lastWave.price * 0.95;
+            }
+
         } else if (lastLabel === '4') {
+            // Project Wave 5
+            // Guideline: Equality with Wave 1 (or 0.618 if W3 extended)
             projLabel = '5 (Proj)';
-            projTarget = isBullishNext ? lastWave.price * 1.1 : lastWave.price * 0.9;
+            const p4 = getPrice(0);
+            const p3 = getPrice(-1);
+            const p2 = getPrice(-2);
+            const p1 = getPrice(-3);
+            const p0 = getPrice(-4); // Start of W1
+
+            if (p4 !== undefined && p1 !== undefined && p0 !== undefined) {
+                const w1Len = Math.abs(p1 - p0);
+                const isBullishImpulse = p1 > p0;
+
+                // Target: Equality
+                let target = isBullishImpulse ? p4 + w1Len : p4 - w1Len;
+
+                // Check W3 length to avoid W3 being shortest
+                // W3 Len = |p3 - p2|
+                // W5 Len = |target - p4| = w1Len
+                // If W3 < W1, then W5 must be < W3.
+                // If W3 is shortest, invalid.
+                // But we are projecting W5. We should choose a W5 that makes W3 NOT shortest.
+                // If W3 < W1, we MUST make W5 < W3.
+
+                const w3Len = Math.abs(p3! - p2!);
+                if (w3Len < w1Len) {
+                    // W3 is shorter than W1. So W5 must be shorter than W3.
+                    // Target 0.618 * W3?
+                    const constrainedLen = w3Len * 0.618;
+                    target = isBullishImpulse ? p4 + constrainedLen : p4 - constrainedLen;
+                }
+
+                projTarget = target;
+            } else {
+                projTarget = isBullishNext ? lastWave.price * 1.1 : lastWave.price * 0.9;
+            }
+
+        } else if (lastLabel === '2') {
+            // Project Wave 3
+            // Guideline: 1.618 * Wave 1
+            projLabel = '3 (Proj)';
+            const p2 = getPrice(0);
+            const p1 = getPrice(-1);
+            const p0 = getPrice(-2);
+
+            if (p2 !== undefined && p1 !== undefined && p0 !== undefined) {
+                const w1Len = Math.abs(p1 - p0);
+                const isBullishImpulse = p1 > p0;
+                const target = isBullishImpulse ? p2 + (w1Len * 1.618) : p2 - (w1Len * 1.618);
+                projTarget = target;
+            } else {
+                projTarget = isBullishNext ? lastWave.price * 1.2 : lastWave.price * 0.8;
+            }
+        } else if (lastLabel === '1') {
+            // Project Wave 2
+            // Guideline: 50% - 61.8% Retrace
+            projLabel = '2 (Proj)';
+            const p1 = getPrice(0);
+            const p0 = getPrice(-1);
+
+            if (p1 !== undefined && p0 !== undefined) {
+                const w1Len = Math.abs(p1 - p0);
+                const isBullishImpulse = p1 > p0;
+                // 61.8% retrace
+                const target = isBullishImpulse ? p1 - (w1Len * 0.618) : p1 + (w1Len * 0.618);
+                projTarget = target;
+            } else {
+                projTarget = isBullishNext ? lastWave.price * 1.05 : lastWave.price * 0.95;
+            }
         } else if (lastLabel === '5' || lastLabel === 'C') {
+            // New Cycle
             projLabel = '1 (Proj)';
             projTarget = isBullishNext ? lastWave.price * 1.1 : lastWave.price * 0.9;
-        } else if (lastLabel === '1') {
-            projLabel = '2 (Proj)';
-            projTarget = isBullishNext ? lastWave.price * 1.05 : lastWave.price * 0.95;
-        } else if (lastLabel === '2') {
-            projLabel = '3 (Proj)';
-            projTarget = isBullishNext ? lastWave.price * 1.2 : lastWave.price * 0.8;
         }
 
         if (projLabel) {
