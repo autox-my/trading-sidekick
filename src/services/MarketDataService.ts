@@ -66,12 +66,27 @@ class TwelveDataProvider implements MarketDataProvider {
         }
     }
 
+    private mapInterval(interval: string): string {
+        const map: { [key: string]: string } = {
+            '1m': '1min',
+            '5m': '5min',
+            '15m': '15min',
+            '30m': '30min',
+            '60m': '1h',
+            '1h': '1h',
+            '1d': '1day',
+            '1w': '1week',
+            '1mo': '1month'
+        };
+        return map[interval] || interval;
+    }
+
     async getCandles(symbol: string, interval: string, _range: string): Promise<Candle[]> {
         if (!this.apiKey) return [];
-        // Map interval/range to Twelve Data format if needed
-        // Twelve Data supports 1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h, 1day, 1week, 1month
+        const apiInterval = this.mapInterval(interval);
+
         try {
-            const res = await fetch(`${this.baseUrl}/time_series?symbol=${symbol}&interval=${interval}&outputsize=500&apikey=${this.apiKey}`);
+            const res = await fetch(`${this.baseUrl}/time_series?symbol=${symbol}&interval=${apiInterval}&outputsize=500&apikey=${this.apiKey}`);
             const data = await res.json();
             if (data.code || !data.values) return [];
 
@@ -155,12 +170,17 @@ class TiingoProvider implements MarketDataProvider {
             // interval: '5min', '1hour', '1day'
             // Map '1d' to 'daily' for EOD endpoint, or use IEX for intraday
             let url = "";
-            if (interval === '1d') {
-                url = `${this.baseUrl}/daily/${symbol}/prices?token=${this.apiKey}&resampleFreq=daily`;
+            if (interval === '1d' || interval === '1day') {
+                url = `${this.baseUrl}/daily/${symbol}/prices?token=${this.apiKey}&resampleFreq=daily&startDate=2020-01-01`; // Add startDate to get history
             } else {
                 // Tiingo IEX historical
-                // interval mapping: 5m -> 5min
-                const tiingoInterval = interval.replace('m', 'min');
+                // interval mapping: 5m -> 5min, 60m -> 1hour
+                let tiingoInterval = interval;
+                if (interval === '60m' || interval === '1h') tiingoInterval = '1hour';
+                else if (interval === '15m') tiingoInterval = '15min';
+                else if (interval === '5m') tiingoInterval = '5min';
+                else if (interval === '1m') tiingoInterval = '1min';
+
                 url = `${this.baseUrl}/iex/${symbol}/prices?token=${this.apiKey}&resampleFreq=${tiingoInterval}`;
             }
 

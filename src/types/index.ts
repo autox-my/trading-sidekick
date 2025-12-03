@@ -24,6 +24,7 @@ export interface Technicals {
     regime: 'Compressed' | 'Expanded' | 'Normal' | 'Neutral';
     avgVolume: number;
     lastVolume: number;
+    vwap: number;
 }
 
 export interface ChartConfig {

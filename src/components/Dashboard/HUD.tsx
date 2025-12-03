@@ -87,11 +87,11 @@ export const HUD: React.FC = () => {
                 color="purple"
             />
 
-            {/* Volume */}
+            {/* Liquidity (Volume & VWAP) */}
             <StatCard
-                label="Volume"
-                value={(technicals.lastVolume / 1000000).toFixed(2) + 'M'}
-                subValue={`Avg: ${(technicals.avgVolume / 1000000).toFixed(2)}M`}
+                label="Liquidity"
+                value={technicals.lastVolume > 0 ? (technicals.lastVolume / 1000000).toFixed(2) + 'M' : 'Vol: N/A'}
+                subValue={`VWAP: ${technicals.vwap ? technicals.vwap.toFixed(2) : 'N/A'}`}
                 icon={BarChart2}
                 color="blue"
             />

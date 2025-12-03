@@ -100,7 +100,7 @@ export const useMarketStore = create<MarketState>()(
             activeSymbol: 'SPY',
             timeframe: '1d',
             marketData: [],
-            technicals: { lastPrice: 0, rsi: 0, sma: 0, atr: 0, regime: 'Neutral', avgVolume: 0, lastVolume: 0 },
+            technicals: { lastPrice: 0, rsi: 0, sma: 0, atr: 0, regime: 'Neutral', avgVolume: 0, lastVolume: 0, vwap: 0 },
             chartConfig: defaultChartConfig,
             scannedPatterns: [],
             dismissedPatterns: [],

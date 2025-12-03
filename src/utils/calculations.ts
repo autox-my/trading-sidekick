@@ -125,3 +125,23 @@ export const calculatePivotPoints = (candles: any[]) => {
     const support = Math.min(...lows);
     return { support, resistance };
 };
+
+export const calculateVWAP = (candles: any[]) => {
+    if (!candles || candles.length === 0) return 0;
+
+    let cumulativeTPV = 0;
+    let cumulativeVolume = 0;
+
+    // Calculate for the visible range or a reasonable intraday period (e.g., last 50 candles if not specified)
+    // For a true intraday VWAP, we should reset at the start of the day, but for this context, 
+    // a rolling VWAP over the loaded candles is a good approximation if the dataset is intraday.
+    for (const candle of candles) {
+        const typicalPrice = (candle.high + candle.low + candle.close) / 3;
+        const volume = candle.volume;
+
+        cumulativeTPV += typicalPrice * volume;
+        cumulativeVolume += volume;
+    }
+
+    return cumulativeVolume === 0 ? 0 : cumulativeTPV / cumulativeVolume;
+};

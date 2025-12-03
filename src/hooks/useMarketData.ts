@@ -19,7 +19,8 @@ import {
     calculateSMA,
     calculateATR,
     getVolatilityRegime,
-    calculateAvgVolume
+    calculateAvgVolume,
+    calculateVWAP
 } from '../utils/calculations';
 import { YAHOO_INTERVALS } from '../utils/constants';
 
@@ -136,6 +137,7 @@ export const useMarketData = () => {
                 const regime = getVolatilityRegime(atr, candles);
                 const lastVol = volumes[volumes.length - 1];
                 const avgVol = calculateAvgVolume(volumes);
+                const vwap = calculateVWAP(candles);
 
                 if (closes.length > 0) {
                     const currentPrice = closes[closes.length - 1];
@@ -151,7 +153,8 @@ export const useMarketData = () => {
                     atr,
                     regime: regime as any, // Cast to match strict type if needed, or update utils
                     avgVolume: avgVol,
-                    lastVolume: lastVol
+                    lastVolume: lastVol,
+                    vwap
                 });
             } catch (e) {
                 console.warn("Data fetch failed, using mock data:", e);
@@ -164,7 +167,8 @@ export const useMarketData = () => {
                     lastPrice: closes[closes.length - 1],
                     rsi: calculateRSI(closes),
                     avgVolume: 0,
-                    lastVolume: 0
+                    lastVolume: 0,
+                    vwap: 0
                 });
             }
         };
