@@ -1,6 +1,6 @@
 # AI Trading Analyst – React App
 
-A fully interactive, AI-powered trading assistant built with **React + Lightweight Charts + Yahoo Finance data**, integrating technical analysis, macro signals, dark-pool analysis, options flow, real-time news sentiment, and multi-personality AI chat.
+A fully interactive, AI-powered trading assistant built with **React + Lightweight Charts + Alpaca data**, integrating technical analysis, macro signals, dark-pool analysis, options flow, real-time news sentiment, and multi-personality AI chat.
 
 ---
 
