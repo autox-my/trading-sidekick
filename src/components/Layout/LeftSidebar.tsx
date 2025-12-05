@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Settings, Bell, LayoutGrid } from 'lucide-react';
+import { Activity, Settings, Bell } from 'lucide-react';
 import { useMarketStore } from '../../store/useMarketStore';
 import { HUD } from '../Dashboard/HUD';
 import { ChartSettings } from '../Dashboard/ChartSettings';
@@ -33,11 +33,12 @@ export const LeftSidebar: React.FC = () => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
+                                aria-label={tab.label}
                                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${isActive
-                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-                                        : isDark
-                                            ? 'text-slate-400 hover:text-white hover:bg-white/5'
-                                            : 'text-slate-500 hover:text-slate-900 hover:bg-white'
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                                    : isDark
+                                        ? 'text-slate-400 hover:text-white hover:bg-white/5'
+                                        : 'text-slate-500 hover:text-slate-900 hover:bg-white'
                                     }`}
                             >
                                 <Icon size={14} />
@@ -60,8 +61,8 @@ export const LeftSidebar: React.FC = () => {
             {/* Footer: Data Source Info */}
             <div className={`p-3 border-t backdrop-blur-md transition-colors duration-300 ${isDark ? 'border-white/5 bg-slate-900/50' : 'border-slate-200 bg-slate-50/80'}`}>
                 <div className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-colors duration-300 ${isDark ? 'bg-slate-950/50 border-white/5' : 'bg-white border-slate-200'}`}>
-                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Data Source</span>
-                    <span className="text-[10px] font-bold text-indigo-400 font-mono uppercase tracking-wider">
+                    <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Data Source</span>
+                    <span className="text-xs font-bold text-indigo-400 font-mono uppercase tracking-wider">
                         {dataSource === 'Alpha Vantage' ? 'ALPHA VANTAGE' : 'TIINGO'}
                     </span>
                 </div>

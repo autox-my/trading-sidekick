@@ -10,6 +10,7 @@ import { SidekickPanel } from './components/Dashboard/SidekickPanel';
 
 import { useUIStore } from './store/useUIStore';
 import { useMarketData } from './hooks/useMarketData';
+import { Toaster } from 'sonner';
 
 // --- CUSTOM ANIMATION STYLES MOVED TO index.css ---
 
@@ -47,6 +48,7 @@ export default function TradingSidekickApp() {
         </div>
 
         <SidekickPanel />
+        <Toaster position="bottom-right" theme={theme.mode === 'dark' ? 'dark' : 'light'} />
       </div>
     </>
   );

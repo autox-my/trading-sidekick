@@ -1,4 +1,6 @@
+import { PROXY_URL, TIINGO_BASE_URL, TIINGO_START_DATE, TWELVE_DATA_BASE_URL, YAHOO_BASE_URL } from '../utils/constants';
 import { calculateRSI, calculateSMA } from '../utils/calculations';
+import { toast } from 'sonner';
 
 export interface Candle {
     time: number; // Unix timestamp in seconds
@@ -37,7 +39,7 @@ export interface MarketDataProvider {
 class TwelveDataProvider implements MarketDataProvider {
     name = "Twelve Data";
     private apiKey: string;
-    private baseUrl = "https://api.twelvedata.com";
+    private baseUrl = TWELVE_DATA_BASE_URL;
 
     constructor(apiKey: string) {
         this.apiKey = apiKey;
@@ -129,7 +131,7 @@ class TwelveDataProvider implements MarketDataProvider {
 class TiingoProvider implements MarketDataProvider {
     name = "Tiingo";
     private apiKey: string;
-    private baseUrl = "https://api.tiingo.com/tiingo";
+    private baseUrl = TIINGO_BASE_URL;
 
     constructor(apiKey: string) {
         this.apiKey = apiKey;
@@ -139,7 +141,7 @@ class TiingoProvider implements MarketDataProvider {
         if (!this.apiKey) return null;
         try {
             // Tiingo IEX endpoint for real-time (or near real-time)
-            const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(`${this.baseUrl}/iex/${symbol}?token=${this.apiKey}`)}`);
+            const res = await fetch(`${PROXY_URL}${encodeURIComponent(`${this.baseUrl}/iex/${symbol}?token=${this.apiKey}`)}`);
             const data = await res.json();
             // Tiingo returns array for /iex endpoint
             const quote = Array.isArray(data) ? data[0] : data;
@@ -171,7 +173,7 @@ class TiingoProvider implements MarketDataProvider {
             // Map '1d' to 'daily' for EOD endpoint, or use IEX for intraday
             let url = "";
             if (interval === '1d' || interval === '1day') {
-                url = `${this.baseUrl}/daily/${symbol}/prices?token=${this.apiKey}&resampleFreq=daily&startDate=2020-01-01`; // Add startDate to get history
+                url = `${this.baseUrl}/daily/${symbol}/prices?token=${this.apiKey}&resampleFreq=daily&startDate=${TIINGO_START_DATE}`; // Add startDate to get history
             } else {
                 // Tiingo IEX historical
                 // interval mapping: 5m -> 5min, 60m -> 1hour
@@ -184,7 +186,7 @@ class TiingoProvider implements MarketDataProvider {
                 url = `${this.baseUrl}/iex/${symbol}/prices?token=${this.apiKey}&resampleFreq=${tiingoInterval}`;
             }
 
-            const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+            const res = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`);
             const data = await res.json();
             if (!Array.isArray(data)) return [];
 
@@ -213,8 +215,8 @@ class YahooProvider implements MarketDataProvider {
 
     async getQuote(symbol: string): Promise<Quote | null> {
         try {
-            const proxyUrl = "https://corsproxy.io/?";
-            const targetUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+            const proxyUrl = PROXY_URL;
+            const targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v8/finance/chart/${symbol}?interval=1d&range=1d`);
             const res = await fetch(proxyUrl + targetUrl);
             const json = await res.json();
             const result = json.chart.result[0];
@@ -240,8 +242,8 @@ class YahooProvider implements MarketDataProvider {
 
     async getCandles(symbol: string, interval: string, range: string): Promise<Candle[]> {
         try {
-            const proxyUrl = "https://corsproxy.io/?";
-            const targetUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`);
+            const proxyUrl = PROXY_URL;
+            const targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`);
             const response = await fetch(proxyUrl + targetUrl);
             const json = await response.json();
             const result = json.chart.result[0];
@@ -271,8 +273,8 @@ class YahooProvider implements MarketDataProvider {
 
     async searchSymbols(query: string): Promise<SearchResult[]> {
         try {
-            const proxyUrl = "https://corsproxy.io/?";
-            const targetUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=10&newsCount=0`);
+            const proxyUrl = PROXY_URL;
+            const targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v1/finance/search?q=${query}&quotesCount=10&newsCount=0`);
             const res = await fetch(proxyUrl + targetUrl);
             const data = await res.json();
 
@@ -329,7 +331,7 @@ class HybridMarketDataService {
         return await this.yahoo.getQuote(symbol);
     }
 
-    async getCandles(symbol: string, interval: string, range: string): Promise<Candle[]> {
+    async getCandles(symbol: string, interval: string, range: string): Promise<{ candles: Candle[], source: string }> {
         // Optimization: Fetch from Twelve Data and Tiingo in parallel to reduce delay
         // We prefer Twelve Data, but if it fails, we want Tiingo ready immediately.
 
@@ -341,18 +343,24 @@ class HybridMarketDataService {
 
         // Wait for Twelve Data first (Primary)
         const twelveDataCandles = await twelveDataPromise;
-        if (twelveDataCandles.length > 0) return twelveDataCandles;
+        if (twelveDataCandles.length > 0) return { candles: twelveDataCandles, source: "Twelve Data" };
 
         // If Twelve Data failed, check Tiingo (Secondary)
         const tiingoCandles = await tiingoPromise;
         if (tiingoCandles.length > 0) {
             console.warn("Using Tiingo as fallback");
-            return tiingoCandles;
+            return { candles: tiingoCandles, source: "Tiingo" };
         }
 
         // Fallback to Yahoo (Tertiary) - Only fetch if others fail to save bandwidth/proxy usage
         console.warn("Primary providers failed, trying Yahoo...");
-        return await this.yahoo.getCandles(symbol, interval, range);
+        const yahooCandles = await this.yahoo.getCandles(symbol, interval, range);
+        if (yahooCandles.length > 0) {
+            return { candles: yahooCandles, source: "Yahoo Finance" };
+        }
+
+        toast.error("Failed to fetch market data from all providers");
+        return { candles: [], source: "None" };
     }
 
     async searchSymbols(query: string): Promise<SearchResult[]> {
@@ -366,10 +374,13 @@ class HybridMarketDataService {
 
     // Helper to get Eagle Eye style data (Multi-timeframe + Indicators)
     async getEagleEyeData(symbol: string) {
-        const [dailyCandles, fiveMinCandles] = await Promise.all([
+        const [dailyResult, fiveMinResult] = await Promise.all([
             this.getCandles(symbol, '1d', '1y'),
             this.getCandles(symbol, '5m', '1d')
         ]);
+
+        const dailyCandles = dailyResult.candles;
+        const fiveMinCandles = fiveMinResult.candles;
 
         if (dailyCandles.length === 0 && fiveMinCandles.length === 0) return null;
 

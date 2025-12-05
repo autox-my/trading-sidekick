@@ -40,3 +40,9 @@ export const SENTIMENT_DICT = {
     positive: ['surge', 'jump', 'gain', 'profit', 'beat', 'growth', 'record', 'strong', 'bull', 'buy', 'upgrade', 'higher', 'rise', 'rally', 'optimism', 'outperform', 'soar'],
     negative: ['drop', 'fall', 'loss', 'miss', 'weak', 'bear', 'sell', 'downgrade', 'crash', 'slump', 'lower', 'risk', 'inflation', 'debt', 'fear', 'plunge', 'retreat']
 };
+
+export const PROXY_URL = "https://corsproxy.io/?";
+export const TIINGO_START_DATE = "2020-01-01";
+export const YAHOO_BASE_URL = "https://query1.finance.yahoo.com";
+export const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com";
+export const TIINGO_BASE_URL = "https://api.tiingo.com/tiingo";

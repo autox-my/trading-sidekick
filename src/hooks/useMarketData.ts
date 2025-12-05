@@ -118,9 +118,11 @@ export const useMarketData = () => {
             if (['1d', '1w'].includes(tf)) range = '10y';
 
             try {
-                const candles = await marketDataService.getCandles(activeSymbol, interval, range);
-                const quote = await marketDataService.getQuote(activeSymbol);
-                if (quote) setDataSource(quote.source);
+                const { candles, source } = await marketDataService.getCandles(activeSymbol, interval, range);
+                setDataSource(source);
+
+                // const quote = await marketDataService.getQuote(activeSymbol);
+                // if (quote) setDataSource(quote.source); // Prefer candle source as it's the main view
 
                 if (candles.length === 0) throw new Error("No valid candles found");
 
