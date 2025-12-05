@@ -37,6 +37,8 @@ export const Header: React.FC = () => {
     const setDarkPoolLevels = useMarketStore(state => state.setDarkPoolLevels);
     const marketStatus = useMarketStore(state => state.marketStatus);
     const dataSource = useMarketStore(state => state.dataSource);
+    const showPrePost = useMarketStore(state => state.showPrePost);
+    const setShowPrePost = useMarketStore(state => state.setShowPrePost);
 
     const { addMessage } = useChatStore();
 
@@ -153,14 +155,19 @@ export const Header: React.FC = () => {
                 </div>
             </div>
             <div className="flex items-center gap-4 ml-6 shrink-0">
-                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors duration-300 ${isDark ? 'bg-slate-950/50 border-white/5' : 'bg-slate-100 border-slate-200'} ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'text-emerald-400' : 'text-amber-400') : (connectionStatus === 'live' ? 'text-emerald-400' : 'text-amber-400')}`}>
+                <button
+                    onClick={() => setShowPrePost(!showPrePost)}
+                    className={`hidden sm:flex items-center gap-2 px-3 py-1.5 border rounded-full transition-colors duration-300 hover:bg-black/5 dark:hover:bg-white/5 ${isDark ? 'bg-slate-950/50 border-white/5' : 'bg-slate-100 border-slate-200'} ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'text-emerald-400' : 'text-amber-400') : (connectionStatus === 'live' ? 'text-emerald-400' : 'text-amber-400')}`}
+                    title="Toggle Extended Hours"
+                >
                     <div className={`w-1.5 h-1.5 rounded-full ${marketStatus?.current_status ? (marketStatus.current_status === 'open' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500') : (connectionStatus === 'live' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-amber-500')}`}></div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                    <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                         {marketStatus?.current_status
                             ? (marketStatus.current_status === 'open' ? 'Market Open' : 'Market Closed')
                             : (connectionStatus === 'live' ? 'Live Feed' : 'Simulated')}
+                        {showPrePost && <span className="opacity-75 font-normal ml-1">(Ext)</span>}
                     </span>
-                </div>
+                </button>
 
                 <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className={`p-2 rounded-lg transition-colors ${isDark ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100'}`}>
                     {isSidebarOpen ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}

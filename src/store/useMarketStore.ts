@@ -99,6 +99,10 @@ interface MarketState {
 
     // Playbook Actions
     setPlaybookSetup: (setup: PlaybookSetup | null) => void;
+
+    // Ext Hours
+    showPrePost: boolean;
+    setShowPrePost: (show: boolean) => void;
 }
 
 export const useMarketStore = create<MarketState>()(
@@ -128,6 +132,8 @@ export const useMarketStore = create<MarketState>()(
             elliottWaveData: [],
             showElliottWaves: true,
             playbookSetup: null,
+
+            showPrePost: false,
 
             setActiveSymbol: (symbol) => set({ activeSymbol: symbol }),
             setTimeframe: (tf) => set({ timeframe: tf }),
@@ -175,7 +181,9 @@ export const useMarketStore = create<MarketState>()(
 
             setElliottWaveData: (data) => set({ elliottWaveData: data }),
             setShowElliottWaves: (show) => set({ showElliottWaves: show }),
-            setPlaybookSetup: (setup) => set({ playbookSetup: setup })
+            setPlaybookSetup: (setup) => set({ playbookSetup: setup }),
+
+            setShowPrePost: (show) => set({ showPrePost: show })
         }),
         {
             name: 'market-storage',

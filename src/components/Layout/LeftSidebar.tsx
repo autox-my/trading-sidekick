@@ -63,7 +63,7 @@ export const LeftSidebar: React.FC = () => {
                 <div className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-colors duration-300 ${isDark ? 'bg-slate-950/50 border-white/5' : 'bg-white border-slate-200'}`}>
                     <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Data Source</span>
                     <span className="text-xs font-bold text-indigo-400 font-mono uppercase tracking-wider">
-                        {dataSource === 'Alpha Vantage' ? 'ALPHA VANTAGE' : 'TIINGO'}
+                        {dataSource || 'UNKNOWN'}
                     </span>
                 </div>
             </div>

@@ -46,3 +46,4 @@ export const TIINGO_START_DATE = "2020-01-01";
 export const YAHOO_BASE_URL = "https://query1.finance.yahoo.com";
 export const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com";
 export const TIINGO_BASE_URL = "https://api.tiingo.com/tiingo";
+export const ALPACA_BASE_URL = "https://paper-api.alpaca.markets/v2"; // Default to paper for safety

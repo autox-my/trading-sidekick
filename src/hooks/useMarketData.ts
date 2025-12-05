@@ -41,7 +41,8 @@ export const useMarketData = () => {
         setExternalData,
         setLastDataUpdate,
         setMarketStatus,
-        setDataSource
+        setDataSource,
+        showPrePost
     } = useMarketStore();
 
     const { setConnectionStatus, setAvKeyStatus } = useUIStore();
@@ -117,8 +118,10 @@ export const useMarketData = () => {
             if (tf === '15m') range = '1mo';
             if (['1d', '1w'].includes(tf)) range = '10y';
 
+            const { showPrePost } = useMarketStore.getState();
+
             try {
-                const { candles, source } = await marketDataService.getCandles(activeSymbol, interval, range);
+                const { candles, source } = await marketDataService.getCandles(activeSymbol, interval, range, showPrePost);
                 setDataSource(source);
 
                 // const quote = await marketDataService.getQuote(activeSymbol);
@@ -158,6 +161,7 @@ export const useMarketData = () => {
                     lastVolume: lastVol,
                     vwap
                 });
+
             } catch (e) {
                 console.warn("Data fetch failed, using mock data:", e);
                 setConnectionStatus('mock');
@@ -174,8 +178,26 @@ export const useMarketData = () => {
                 });
             }
         };
+
         fetchData();
+
+        // Subscribe to Real-time Updates (WebSocket)
+        marketDataService.subscribeToQuotes(activeSymbol, (quote) => {
+            // Check if source is Alpaca to enable live UI
+            if (quote.source.includes("Alpaca")) {
+                setDataSource(quote.source);
+            }
+
+            setTechnicals((prev: any) => ({
+                ...prev,
+                lastPrice: quote.price
+            }));
+
+            // Note: We might want to append this live quote to the current candles if it's a new minute/bar
+            // For now, updating the "Last Price" technical indicator provides the live feel.
+        });
+
         const interval = setInterval(fetchData, 60000);
         return () => clearInterval(interval);
-    }, [activeSymbol, timeframe, macroCorrelations, chartConfig.smaPeriod, setMarketData, setConnectionStatus, setScannedPatterns, setTechnicals, setPriceDir]);
+    }, [activeSymbol, timeframe, macroCorrelations, chartConfig.smaPeriod, setMarketData, setConnectionStatus, setScannedPatterns, setTechnicals, setPriceDir, showPrePost]);
 };
