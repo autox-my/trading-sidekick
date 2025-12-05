@@ -32,10 +32,6 @@ export const ChartLegend: React.FC<ChartLegendProps> = ({ data, symbol, interval
 
     return (
         <div className="absolute left-3 top-3 z-20 flex flex-col gap-1 pointer-events-none select-none">
-            <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-text-primary tracking-wide">{symbol}</span>
-                <span className="text-xs font-medium text-text-secondary bg-secondary/50 px-1.5 py-0.5 rounded border border-white/5">{interval}</span>
-            </div>
             <div className="flex items-center gap-3 text-xs font-mono backdrop-blur-sm bg-background/30 p-1.5 rounded-lg border border-white/5">
                 <div className="flex gap-1">
                     <span className="text-text-secondary">O</span>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
     createChart,
     ColorType,
@@ -7,27 +7,30 @@ import {
     LineSeries,
     BarSeries,
     HistogramSeries,
-    createSeriesMarkers, // Import new V5 API
-    CrosshairMode, // Import CrosshairMode
+    createSeriesMarkers,
+    CrosshairMode,
     type IChartApi,
     type ISeriesApi,
     type Time,
     type LineWidth,
     type SeriesMarker,
-    type ISeriesMarkersPluginApi // Import Plugin Type
+    type ISeriesMarkersPluginApi
 } from 'lightweight-charts';
-import { useMarketStore } from '../store/useMarketStore';
+import { useDrawings } from './useDrawings';
 import { useUIStore } from '../store/useUIStore';
-import { calculateSMASeries, calculatePivotPoints } from '../utils/calculations';
+import { useMarketStore } from '../store/useMarketStore';
+import { calculateSMASeries, calculatePivotPoints, calculateAnchoredVWAP } from '../utils/calculations';
 import { mergePriceLevels, hexToRgba } from '../utils/helpers';
 import type { Candle } from '../types';
 
-interface UseChartProps {
-    containerRef: React.RefObject<HTMLDivElement | null>;
-    onCrosshairMove?: (data: any) => void;
+export interface UseChartProps {
+    containerRef: React.RefObject<HTMLDivElement>;
+    onCrosshairMove?: (param: any) => void;
 }
 
 export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
+    // ... (rest of hook)
+
     const { theme, setActiveAnnotation, setContextMenu, autoFitTrigger } = useUIStore();
     const {
         marketData,
@@ -42,9 +45,12 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     const mainSeries = useRef<ISeriesApi<"Candlestick" | "Bar" | "Line"> | null>(null);
     const volumeSeries = useRef<ISeriesApi<"Histogram"> | null>(null);
     const smaSeries = useRef<ISeriesApi<"Line"> | null>(null);
+    const avwapSeries = useRef<ISeriesApi<"Line"> | null>(null);
     const waveSeries = useRef<ISeriesApi<"Line"> | null>(null);
     const projectionSeries = useRef<ISeriesApi<"Line"> | null>(null);
     const seriesMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null); // Ref for Markers Plugin
+
+    const [anchorTime, setAnchorTime] = useState<number | null>(null);
 
     // Store latest market data ref to access inside callbacks without re-subscribing
     const marketDataRef = useRef(marketData);
@@ -53,6 +59,45 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     const annotationLinesRef = useRef<any[]>([]);
     const hoveredCandleRef = useRef<any>(null);
     const levelsRef = useRef<{ support: number | null, resistance: number | null, darkPools: any[] }>({ support: null, resistance: null, darkPools: [] });
+
+    // Handle Anchor Selection
+    const handleAnchorSelect = (time: any) => {
+        // time is Time (number or string), we need number for calculation logic usually
+        // lightweigth-charts Time can be string 'yyyy-mm-dd'. Our data uses unix timestamp numbers usually.
+        // Assuming time is number for now or compatible.
+        setAnchorTime(time as number);
+    };
+
+    // Enable Drawings - Explicitly cast mainSeries as Candlestick for now since Trendlines expect it
+    // In future, we can make TrendlinePrimitive generic
+    useDrawings(chartInstance.current, mainSeries.current as ISeriesApi<"Candlestick"> | null, handleAnchorSelect);
+
+    // Create AVWAP Series
+    useEffect(() => {
+        if (!chartInstance.current) return;
+        if (!avwapSeries.current) {
+            avwapSeries.current = chartInstance.current.addSeries(LineSeries, {
+                color: '#f59e0b', // Amber-500
+                lineWidth: 2,
+                lineStyle: LineStyle.Solid,
+                title: 'AVWAP',
+                visible: true,
+            });
+        }
+    }, [chartInstance.current]);
+
+    // Calculate AVWAP
+    useEffect(() => {
+        if (!avwapSeries.current || !anchorTime || marketData.length === 0) {
+            // Optional: clear series if no anchor
+            if (avwapSeries.current && !anchorTime) avwapSeries.current.setData([]);
+            return;
+        }
+
+        const avwapData = calculateAnchoredVWAP(marketData, anchorTime);
+        avwapSeries.current.setData(avwapData as any);
+
+    }, [anchorTime, marketData]);
 
     // Initialize Chart
     useEffect(() => {
@@ -389,7 +434,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
         // Playbook Lines
         if (playbookSetup && marketData.length > 0) {
             const { entry, stopLoss, target, direction } = playbookSetup;
-            const entryLine = mainSeries.current.createPriceLine({ price: entry, title: `ENTRY ${direction}`, color: '#3b82f6', lineWidth: 2 as LineWidth, lineStyle: 0, axisLabelVisible: true });
+            const entryLine = mainSeries.current.createPriceLine({ price: entry, title: `ENTRY ${direction} `, color: '#3b82f6', lineWidth: 2 as LineWidth, lineStyle: 0, axisLabelVisible: true });
             annotationLinesRef.current.push(entryLine);
 
             const slLine = mainSeries.current.createPriceLine({ price: stopLoss, title: 'STOP', color: '#ef4444', lineWidth: 2 as LineWidth, lineStyle: 2, axisLabelVisible: true });
