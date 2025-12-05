@@ -188,10 +188,10 @@ export const useMarketData = () => {
                 setDataSource(quote.source);
             }
 
-            setTechnicals((prev: any) => ({
-                ...prev,
+            setTechnicals({
+                ...useMarketStore.getState().technicals,
                 lastPrice: quote.price
-            }));
+            });
 
             // Note: We might want to append this live quote to the current candles if it's a new minute/bar
             // For now, updating the "Last Price" technical indicator provides the live feel.

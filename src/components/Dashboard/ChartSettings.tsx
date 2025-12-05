@@ -78,6 +78,12 @@ export const ChartSettings: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex items-center justify-between p-1">
+                            <span className="text-xs text-text-secondary font-medium">Show Volume</span>
+                            <button onClick={() => setChartConfig({ ...chartConfig, volumeVisible: !chartConfig.volumeVisible })} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${chartConfig.volumeVisible ? 'bg-indigo-600' : 'bg-slate-700'}`}>
+                                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${chartConfig.volumeVisible ? 'translate-x-5' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-between p-1">
                             <span className="text-xs text-text-secondary font-medium">Line Opacity</span>
                             <div className="flex items-center gap-2">
                                 <input type="range" min="0" max="1" step="0.1" value={chartConfig.annotationOpacity} onChange={(e) => setChartConfig({ ...chartConfig, annotationOpacity: parseFloat(e.target.value) })} className="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />

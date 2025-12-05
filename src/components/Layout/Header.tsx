@@ -36,7 +36,7 @@ export const Header: React.FC = () => {
     const darkPoolLevels = useMarketStore(state => state.darkPoolLevels);
     const setDarkPoolLevels = useMarketStore(state => state.setDarkPoolLevels);
     const marketStatus = useMarketStore(state => state.marketStatus);
-    const dataSource = useMarketStore(state => state.dataSource);
+    // dataSource removed
     const showPrePost = useMarketStore(state => state.showPrePost);
     const setShowPrePost = useMarketStore(state => state.setShowPrePost);
 

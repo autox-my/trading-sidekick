@@ -37,7 +37,8 @@ const defaultChartConfig: ChartConfig = {
     chartType: 'candle',
     marginTop: 0.05,
     marginBottom: 0.05,
-    marginRight: 0.1
+    marginRight: 0.1,
+    volumeVisible: false
 };
 
 interface MarketState {

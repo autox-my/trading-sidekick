@@ -197,7 +197,7 @@ const validatePartialImpulse = (pivots: Pivot[], isBullish: boolean): number => 
 
     if (pivots.length < 4) return 2; // Wave 1-2
 
-    const p3 = pivots[3].price;
+    // p3 removed
     // Wave 3 direction check (implicit in ZigZag)
 
     if (pivots.length < 5) return 3; // Wave 1-2-3

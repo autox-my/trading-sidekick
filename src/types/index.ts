@@ -49,6 +49,7 @@ export interface ChartConfig {
     marginTop?: number;
     marginBottom?: number;
     marginRight?: number;
+    volumeVisible?: boolean;
     avKey: string; // Alpha Vantage Key
 }
 

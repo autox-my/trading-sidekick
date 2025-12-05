@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
     HelpCircle,
     Sparkles,
@@ -9,6 +9,7 @@ import { useUIStore } from '../../store/useUIStore';
 import { useMarketStore } from '../../store/useMarketStore';
 import { useChatStore } from '../../store/useChatStore';
 import { useChart } from '../../hooks/useChart';
+import { ChartLegend } from './ChartLegend';
 
 export const ChartArea: React.FC = () => {
     const {
@@ -18,13 +19,34 @@ export const ChartArea: React.FC = () => {
         contextMenu
     } = useUIStore();
 
+    const {
+        activeSymbol,
+        timeframe
+    } = useMarketStore();
+
     const { sendMessage } = useChatStore();
 
     const chartContainerRef = useRef<HTMLDivElement>(null);
-    useChart(chartContainerRef);
+    const [crosshairData, setCrosshairData] = useState<any>(null);
+
+    const handleCrosshairMove = useCallback((data: any) => {
+        setCrosshairData(data);
+    }, []);
+
+    useChart({
+        containerRef: chartContainerRef,
+        onCrosshairMove: handleCrosshairMove
+    });
 
     return (
         <div className={`w-full h-full absolute inset-0 ${viewMode === 'chart' ? 'z-10 opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}`}>
+
+            {/* Chart Legend (OHLCV) */}
+            <ChartLegend
+                data={crosshairData}
+                symbol={activeSymbol}
+                interval={timeframe}
+            />
 
             {/* Interactive "Why?" Annotation Tooltip */}
             {activeAnnotation && (
@@ -91,8 +113,6 @@ export const ChartArea: React.FC = () => {
                     </button>
                 </div>
             )}
-
-
 
             {/* Ensure pointer events are enabled for the chart container */}
             <div ref={chartContainerRef} className="w-full h-full relative z-10">
