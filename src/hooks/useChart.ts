@@ -8,6 +8,7 @@ import {
     BarSeries,
     HistogramSeries,
     createSeriesMarkers, // Import new V5 API
+    CrosshairMode, // Import CrosshairMode
     type IChartApi,
     type ISeriesApi,
     type Time,
@@ -474,6 +475,9 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             grid: {
                 vertLines: { color: gridColor, visible: chartConfig.gridVisible },
                 horzLines: { color: gridColor, visible: chartConfig.gridVisible }
+            },
+            crosshair: {
+                mode: chartConfig.magnetMode === 'magnetOHLC' ? CrosshairMode.MagnetOHLC : (chartConfig.magnetMode === 'magnet' ? CrosshairMode.Magnet : CrosshairMode.Normal)
             }
         });
 
@@ -485,6 +489,13 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                 borderDownColor: chartConfig.borderDownColor,
                 wickUpColor: chartConfig.borderUpColor,
                 wickDownColor: chartConfig.borderDownColor
+            });
+        }
+
+        if (smaSeries.current) {
+            smaSeries.current.applyOptions({
+                visible: chartConfig.smaVisible,
+                color: hexToRgba(chartConfig.smaColor, chartConfig.smaOpacity)
             });
         }
 
@@ -507,7 +518,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             }
         }
 
-    }, [chartConfig, theme.mode]);
+    }, [chartConfig, theme.mode, chartConfig.magnetMode]);
 
     // Resizing
     useEffect(() => {

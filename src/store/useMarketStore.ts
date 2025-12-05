@@ -38,7 +38,8 @@ const defaultChartConfig: ChartConfig = {
     marginTop: 0.05,
     marginBottom: 0.05,
     marginRight: 0.1,
-    volumeVisible: false
+    volumeVisible: false,
+    magnetMode: 'magnetOHLC'
 };
 
 interface MarketState {

@@ -84,6 +84,18 @@ export const ChartSettings: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex items-center justify-between p-1">
+                            <span className="text-xs text-text-secondary font-medium">Magnet Mode</span>
+                            <select
+                                value={chartConfig.magnetMode || 'magnetOHLC'}
+                                onChange={(e) => setChartConfig({ ...chartConfig, magnetMode: e.target.value as any })}
+                                className="bg-slate-800 text-xs text-text-primary rounded px-2 py-1 border border-slate-700 outline-none focus:border-indigo-500"
+                            >
+                                <option value="normal">Normal</option>
+                                <option value="magnet">Magnet (Close)</option>
+                                <option value="magnetOHLC">Magnet (OHLC)</option>
+                            </select>
+                        </div>
+                        <div className="flex items-center justify-between p-1">
                             <span className="text-xs text-text-secondary font-medium">Line Opacity</span>
                             <div className="flex items-center gap-2">
                                 <input type="range" min="0" max="1" step="0.1" value={chartConfig.annotationOpacity} onChange={(e) => setChartConfig({ ...chartConfig, annotationOpacity: parseFloat(e.target.value) })} className="w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" />

@@ -50,6 +50,7 @@ export interface ChartConfig {
     marginBottom?: number;
     marginRight?: number;
     volumeVisible?: boolean;
+    magnetMode?: 'normal' | 'magnet' | 'magnetOHLC'; // Free, Close-Magnet, OHLC-Magnet
     avKey: string; // Alpha Vantage Key
 }
 
