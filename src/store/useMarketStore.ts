@@ -205,12 +205,6 @@ export const useMarketStore = create<MarketState>()(
             clearDrawings: () => set({ trendlines: [], zones: [] }),
 
             setShowPrePost: (show) => set({ showPrePost: show })
-            setZones: (zones) => set((state) => ({
-                zones: typeof zones === 'function' ? zones(state.zones) : zones
-            })),
-            clearDrawings: () => set({ trendlines: [], zones: [] }),
-
-            setShowPrePost: (show) => set({ showPrePost: show })
         }),
         {
             name: 'market-storage',
