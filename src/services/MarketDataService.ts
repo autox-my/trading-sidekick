@@ -114,6 +114,7 @@ class AlpacaProvider implements MarketDataProvider {
             if (interval === '5m') timeframe = '5Min';
             if (interval === '15m') timeframe = '15Min';
             if (interval === '1h' || interval === '60m') timeframe = '1Hour';
+            if (interval === '1w' || interval === '1week') timeframe = '1Week';
 
             // Determine start date based on range
             let startDate = new Date();
@@ -247,7 +248,8 @@ class TwelveDataProvider implements MarketDataProvider {
                 high: parseFloat(v.high),
                 low: parseFloat(v.low),
                 close: parseFloat(v.close),
-                volume: parseFloat(v.volume)
+                // FIX: Fallback to 0 if volume is missing or NaN
+                volume: parseFloat(v.volume) || 0
             })).reverse();
         } catch (e) {
             console.error("Twelve Data Candles Error:", e);
@@ -497,9 +499,14 @@ class YahooProvider implements MarketDataProvider {
     async getCandles(symbol: string, interval: string, range: string, extendedHours?: boolean): Promise<Candle[]> {
         try {
             const proxyUrl = PROXY_URL;
-            let targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v8/finance/chart/${symbol}?interval=${interval}&range=${range}`);
+
+            let yahooInterval = interval;
+            if (interval === '1w') yahooInterval = '1wk';
+            if (interval === '1h') yahooInterval = '60m';
+
+            let targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v8/finance/chart/${symbol}?interval=${yahooInterval}&range=${range}`);
             if (extendedHours) {
-                targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true`);
+                targetUrl = encodeURIComponent(`${YAHOO_BASE_URL}/v8/finance/chart/${symbol}?interval=${yahooInterval}&range=${range}&includePrePost=true`);
             }
             const response = await fetch(proxyUrl + targetUrl);
             const json = await response.json();

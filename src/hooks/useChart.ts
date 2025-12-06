@@ -366,7 +366,8 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
         // Volume Data
         volumeSeries.current.setData(marketData.map((d) => ({
             time: d.time as Time,
-            value: d.volume,
+            // FIX: Ensure volume is a valid number, fallback to 0
+            value: (Number.isFinite(d.volume)) ? d.volume : 0,
             color: d.close >= d.open ? hexToRgba('#26a69a', 0.5) : hexToRgba('#ef5350', 0.5)
         })));
 
