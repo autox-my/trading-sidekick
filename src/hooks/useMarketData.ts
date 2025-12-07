@@ -113,7 +113,7 @@ export const useMarketData = () => {
     useEffect(() => {
         const fetchData = async () => {
             const tf = timeframe.toLowerCase();
-            const interval = YAHOO_INTERVALS[tf] || '1h';
+            const interval = tf;
             let range = '6mo';
             if (tf === '15m') range = '1mo';
             if (['1d', '1w'].includes(tf)) range = '10y';
@@ -188,10 +188,10 @@ export const useMarketData = () => {
                 setDataSource(quote.source);
             }
 
-            setTechnicals((prev: any) => ({
-                ...prev,
+            setTechnicals({
+                ...useMarketStore.getState().technicals,
                 lastPrice: quote.price
-            }));
+            });
 
             // Note: We might want to append this live quote to the current candles if it's a new minute/bar
             // For now, updating the "Last Price" technical indicator provides the live feel.

@@ -52,6 +52,8 @@ interface UIState {
     setShowChartSettings: (show: boolean) => void;
     setActiveAnnotation: (annotation: ActiveAnnotation | null) => void;
     setContextMenu: (menu: ContextMenu) => void;
+    activeTool: 'trendline' | 'box' | 'avwap' | null;
+    setActiveTool: (tool: 'trendline' | 'box' | 'avwap' | null) => void;
     setIsLoading: (loading: boolean) => void;
     setConnectionStatus: (status: 'live' | 'mock') => void;
     setAvKeyStatus: (status: 'valid' | 'invalid' | 'checking' | 'idle') => void;
@@ -80,6 +82,7 @@ export const useUIStore = create<UIState>()(
             avKeyStatus: 'idle',
             externalToolUrl: 'http://localhost:5173',
             isEditingUrl: false,
+            activeTool: null,
             autoFitTrigger: 0,
             widgets: {
                 'price': { id: 'price', x: 0, y: 0, visible: true },
@@ -104,6 +107,7 @@ export const useUIStore = create<UIState>()(
             setShowChartSettings: (show) => set({ showChartSettings: show }),
             setActiveAnnotation: (annotation) => set({ activeAnnotation: annotation }),
             setContextMenu: (menu) => set({ contextMenu: menu }),
+            setActiveTool: (tool) => set({ activeTool: tool }),
             setIsLoading: (loading) => set({ isLoading: loading }),
             setConnectionStatus: (status) => set({ connectionStatus: status }),
             setAvKeyStatus: (status) => set({ avKeyStatus: status }),

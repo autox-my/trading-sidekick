@@ -116,6 +116,39 @@ export const calculateRSIArray = (closes: number[], period = 14) => {
     return rsiArray;
 };
 
+export const calculateAnchoredVWAP = (data: any[], anchorTime: number): { time: number; value: number }[] => {
+    let startIndex = -1;
+    // Find index of anchor time
+    for (let i = 0; i < data.length; i++) {
+        if (data[i].time >= anchorTime) {
+            startIndex = i;
+            break;
+        }
+    }
+
+    if (startIndex === -1) return [];
+
+    const result: { time: number; value: number }[] = [];
+    let cumulativePV = 0;
+    let cumulativeVolume = 0;
+
+    for (let i = startIndex; i < data.length; i++) {
+        const candle = data[i];
+        const typicalPrice = (candle.high + candle.low + candle.close) / 3;
+        const volume = candle.volume;
+
+        cumulativePV += typicalPrice * volume;
+        cumulativeVolume += volume;
+
+        result.push({
+            time: candle.time,
+            value: cumulativeVolume === 0 ? 0 : cumulativePV / cumulativeVolume
+        });
+    }
+
+    return result;
+};
+
 export const calculatePivotPoints = (candles: any[]) => {
     if (candles.length === 0) return { support: null, resistance: null };
     const slice = candles.slice(-20);

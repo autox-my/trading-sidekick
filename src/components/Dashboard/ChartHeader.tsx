@@ -15,7 +15,7 @@ export const ChartHeader: React.FC = () => {
     const isUp = priceChange >= 0;
 
     return (
-        <div className="absolute top-4 left-4 z-40 pointer-events-none">
+        <div className="absolute top-12 left-4 z-40 pointer-events-none">
             <div className="inline-flex items-center justify-between pointer-events-auto bg-secondary/60 backdrop-blur-md border border-[rgba(var(--glass-border),0.2)] p-3 rounded-2xl shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col">

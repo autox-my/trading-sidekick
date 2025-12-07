@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { marketDataService } from '../services/MarketDataService';
+import type { TrendlineData } from '../components/Chart/plugins/TrendlinePrimitive';
+import type { BoxData } from '../components/Chart/plugins/BoxPrimitive';
 import type {
     Candle,
     Technicals,
@@ -37,7 +39,9 @@ const defaultChartConfig: ChartConfig = {
     chartType: 'candle',
     marginTop: 0.05,
     marginBottom: 0.05,
-    marginRight: 0.1
+    marginRight: 0.1,
+    volumeVisible: false,
+    magnetMode: 'magnetOHLC'
 };
 
 interface MarketState {
@@ -53,6 +57,11 @@ interface MarketState {
     macroData: MacroData | null;
     macroCorrelations: MacroCorrelationData | null;
     darkPoolLevels: DarkPoolData | null;
+
+    // Drawings
+    trendlines: TrendlineData[];
+    zones: BoxData[];
+
     externalData: any; // Keep any for now as structure is dynamic
     lastDataUpdate: number;
     priceDir: 'up' | 'down' | 'neutral';
@@ -130,8 +139,12 @@ export const useMarketStore = create<MarketState>()(
             dataSource: 'Initializing...',
 
             elliottWaveData: [],
-            showElliottWaves: true,
+            showElliottWaves: false,
             playbookSetup: null,
+
+            // Drawings
+            trendlines: [],
+            zones: [],
 
             showPrePost: false,
 
@@ -183,6 +196,14 @@ export const useMarketStore = create<MarketState>()(
             setShowElliottWaves: (show) => set({ showElliottWaves: show }),
             setPlaybookSetup: (setup) => set({ playbookSetup: setup }),
 
+            setTrendlines: (lines) => set((state) => ({
+                trendlines: typeof lines === 'function' ? lines(state.trendlines) : lines
+            })),
+            setZones: (zones) => set((state) => ({
+                zones: typeof zones === 'function' ? zones(state.zones) : zones
+            })),
+            clearDrawings: () => set({ trendlines: [], zones: [] }),
+
             setShowPrePost: (show) => set({ showPrePost: show })
         }),
         {
@@ -191,7 +212,10 @@ export const useMarketStore = create<MarketState>()(
                 timeframe: state.timeframe,
                 chartConfig: state.chartConfig,
                 macroData: state.macroData,
-                marketStatus: state.marketStatus
+                marketStatus: state.marketStatus,
+                activeSymbol: state.activeSymbol,
+                trendlines: state.trendlines,
+                zones: state.zones
             }),
         }
     )
