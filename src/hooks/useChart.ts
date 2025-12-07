@@ -29,9 +29,7 @@ export interface UseChartProps {
 }
 
 export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
-    // ... (rest of hook)
-
-    const { theme, setActiveAnnotation, setContextMenu, autoFitTrigger } = useUIStore();
+    const { theme, setActiveAnnotation, setContextMenu, autoFitTrigger, activeTool } = useUIStore();
     const {
         marketData,
         chartConfig,
@@ -48,9 +46,10 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     const avwapSeries = useRef<ISeriesApi<"Line"> | null>(null);
     const waveSeries = useRef<ISeriesApi<"Line"> | null>(null);
     const projectionSeries = useRef<ISeriesApi<"Line"> | null>(null);
-    const seriesMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null); // Ref for Markers Plugin
+    const seriesMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
 
-    const [anchorTime, setAnchorTime] = useState<number | null>(null);
+    // Anchor State for AVWAP
+    const [anchorTime, setAnchorTime] = useState<Time | null>(null);
 
     // Store latest market data ref to access inside callbacks without re-subscribing
     const marketDataRef = useRef(marketData);
@@ -60,17 +59,13 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     const hoveredCandleRef = useRef<any>(null);
     const levelsRef = useRef<{ support: number | null, resistance: number | null, darkPools: any[] }>({ support: null, resistance: null, darkPools: [] });
 
-    // Handle Anchor Selection
-    const handleAnchorSelect = (time: any) => {
-        // time is Time (number or string), we need number for calculation logic usually
-        // lightweigth-charts Time can be string 'yyyy-mm-dd'. Our data uses unix timestamp numbers usually.
-        // Assuming time is number for now or compatible.
-        setAnchorTime(time as number);
-    };
-
-    // Enable Drawings - Explicitly cast mainSeries as Candlestick for now since Trendlines expect it
-    // In future, we can make TrendlinePrimitive generic
-    useDrawings(chartInstance.current, mainSeries.current as ISeriesApi<"Candlestick"> | null, handleAnchorSelect);
+    // Enable Drawings with Anchor Support
+    useDrawings(
+        chartInstance.current,
+        mainSeries.current as ISeriesApi<"Candlestick"> | null,
+        anchorTime,
+        (t) => setAnchorTime(t)
+    );
 
     // Create AVWAP Series
     useEffect(() => {
@@ -89,13 +84,18 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     // Calculate AVWAP
     useEffect(() => {
         if (!avwapSeries.current || !anchorTime || marketData.length === 0) {
-            // Optional: clear series if no anchor
             if (avwapSeries.current && !anchorTime) avwapSeries.current.setData([]);
             return;
         }
 
-        const avwapData = calculateAnchoredVWAP(marketData, anchorTime);
-        avwapSeries.current.setData(avwapData as any);
+        // Convert lightweight-charts Time to timestamp number if needed
+        const anchorTs = typeof anchorTime === 'number' ? anchorTime : (new Date(anchorTime as string).getTime() / 1000);
+        const avwapData = calculateAnchoredVWAP(marketData, anchorTs);
+
+        avwapSeries.current.setData(avwapData.map(d => ({
+            time: d.time as Time,
+            value: d.value
+        })));
 
     }, [anchorTime, marketData]);
 
@@ -103,7 +103,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Cleanup previous instance if it exists
         if (chartInstance.current) {
             chartInstance.current.remove();
             chartInstance.current = null;
@@ -115,7 +114,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             const textColor = isDark ? '#94a3b8' : '#475569';
             const gridColor = isDark ? '#1e293b' : '#e2e8f0';
 
-            // Chart Creation
             chartInstance.current = createChart(containerRef.current, {
                 layout: {
                     background: { type: ColorType.Solid, color: bgColor },
@@ -150,40 +148,26 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                     minBarSpacing: 0.5,
                 },
                 crosshair: {
-                    mode: 1, // Magnet
+                    mode: activeTool ? CrosshairMode.Normal : (chartConfig.magnetMode === 'magnetOHLC' ? CrosshairMode.MagnetOHLC : (chartConfig.magnetMode === 'magnet' ? CrosshairMode.Magnet : CrosshairMode.Normal))
                 }
             });
 
-            // Configure separate Volume Scale (Pane 1, 20% height) OR hidden
             const volVisible = chartConfig.volumeVisible ?? false;
 
             if (volVisible) {
-                // Price Scale compressed to top 80%
                 chartInstance.current.priceScale('right').applyOptions({
-                    scaleMargins: {
-                        top: 0.05,
-                        bottom: 0.25, // Leave space for volume
-                    }
+                    scaleMargins: { top: 0.05, bottom: 0.25 }
                 });
-
                 chartInstance.current.priceScale('volume').applyOptions({
-                    scaleMargins: {
-                        top: 0.8, // Start at 80%
-                        bottom: 0,
-                    },
-                    visible: false // No axis labels usually for volume
+                    scaleMargins: { top: 0.8, bottom: 0 },
+                    visible: false
                 });
             } else {
-                // Full height for price
                 chartInstance.current.priceScale('right').applyOptions({
-                    scaleMargins: {
-                        top: 0.05,
-                        bottom: 0.05,
-                    }
+                    scaleMargins: { top: 0.05, bottom: 0.05 }
                 });
             }
 
-            // Crosshair Handler
             chartInstance.current.subscribeCrosshairMove((param) => {
                 if (param.time && mainSeries.current) {
                     const data = param.seriesData.get(mainSeries.current);
@@ -203,7 +187,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                         };
 
                         if (onCrosshairMove) onCrosshairMove(combined);
-
                         hoveredCandleRef.current = { ...combined };
 
                         const price = mainSeries.current?.coordinateToPrice(param.point?.y ?? 0);
@@ -229,7 +212,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                 }
             });
 
-            // Context Menu
             containerRef.current.addEventListener('contextmenu', (e: MouseEvent) => {
                 e.preventDefault();
                 if (hoveredCandleRef.current) {
@@ -237,17 +219,13 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                 }
             });
 
-            // Init Volume Series
             volumeSeries.current = chartInstance.current.addSeries(HistogramSeries, {
                 color: '#26a69a',
-                priceFormat: {
-                    type: 'volume',
-                },
+                priceFormat: { type: 'volume' },
                 priceScaleId: 'volume',
                 visible: chartConfig.volumeVisible ?? false
             });
 
-            // Init Indicators
             smaSeries.current = chartInstance.current.addSeries(LineSeries, {
                 color: hexToRgba(chartConfig.smaColor, chartConfig.smaOpacity),
                 lineWidth: 2,
@@ -277,7 +255,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             });
 
             if (marketDataRef.current.length > 0) {
-                // Defer to next effect
+                // Initial data load handled in updateData effect
             }
 
         } catch (e) {
@@ -305,7 +283,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
         if (mainSeries.current) {
             chartInstance.current.removeSeries(mainSeries.current);
             mainSeries.current = null;
-            seriesMarkersRef.current = null; // Clear markers plugin ref
+            seriesMarkersRef.current = null;
         }
 
         try {
@@ -332,11 +310,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                 });
             }
 
-            // Initialize Markers Plugin for the new series
-            seriesMarkersRef.current = createSeriesMarkers(mainSeries.current, [], {
-                // Plugin defaults
-            });
-
+            seriesMarkersRef.current = createSeriesMarkers(mainSeries.current, [], {});
 
             if (marketData.length > 0) {
                 updateData();
@@ -350,7 +324,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
     const updateData = () => {
         if (!mainSeries.current || !volumeSeries.current || marketData.length === 0) return;
 
-        // Price Data
         if (chartConfig.chartType === 'line') {
             mainSeries.current.setData(marketData.map((d) => ({ time: d.time as Time, value: d.close })));
         } else {
@@ -363,15 +336,12 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             })));
         }
 
-        // Volume Data
         volumeSeries.current.setData(marketData.map((d) => ({
             time: d.time as Time,
-            // FIX: Ensure volume is a valid number, fallback to 0
             value: (Number.isFinite(d.volume)) ? d.volume : 0,
             color: d.close >= d.open ? hexToRgba('#26a69a', 0.5) : hexToRgba('#ef5350', 0.5)
         })));
 
-        // SMA
         if (smaSeries.current) {
             const smaData = calculateSMASeries(marketData, chartConfig.smaPeriod);
             smaSeries.current.setData(smaData.map(d => ({ time: d.time as Time, value: d.value })));
@@ -384,7 +354,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
 
         updateData();
 
-        // Annotations
         annotationLinesRef.current.forEach(line => mainSeries.current?.removePriceLine(line));
         annotationLinesRef.current = [];
 
@@ -400,7 +369,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                 const lineOps = {
                     title: level.label,
                     color: level.price === support ? '#22c55e' : (level.price === resistance ? '#ef4444' : '#a855f7'),
-                    lineWidth: 1 as LineWidth, // Cast explicitly
+                    lineWidth: 1 as LineWidth,
                     lineStyle: 2 as LineStyle,
                     axisLabelVisible: true
                 };
@@ -432,7 +401,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             });
         }
 
-        // Playbook Lines
         if (playbookSetup && marketData.length > 0) {
             const { entry, stopLoss, target, direction } = playbookSetup;
             const entryLine = mainSeries.current.createPriceLine({ price: entry, title: `ENTRY ${direction} `, color: '#3b82f6', lineWidth: 2 as LineWidth, lineStyle: 0, axisLabelVisible: true });
@@ -445,14 +413,12 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             annotationLinesRef.current.push(tpLine);
         }
 
-        // Elliott Wave Visualization
         if (showElliottWaves && elliottWaveData && elliottWaveData.length > 0 && waveSeries.current && projectionSeries.current) {
             const markers: SeriesMarker<Time>[] = [];
             const confirmedData: any[] = [];
 
             const findTime = (ts: string | number) => {
                 const target = typeof ts === 'string' ? new Date(ts).getTime() / 1000 : ts;
-                // Market data is in seconds
                 return marketData.find(d => d.time === target)?.time || target;
             };
 
@@ -493,7 +459,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
 
             markers.sort((a, b) => (a.time as number) - (b.time as number));
 
-            // Use the Markers Plugin API
             if (seriesMarkersRef.current) {
                 seriesMarkersRef.current.setMarkers(markers);
             }
@@ -523,7 +488,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
                 horzLines: { color: gridColor, visible: chartConfig.gridVisible }
             },
             crosshair: {
-                mode: chartConfig.magnetMode === 'magnetOHLC' ? CrosshairMode.MagnetOHLC : (chartConfig.magnetMode === 'magnet' ? CrosshairMode.Magnet : CrosshairMode.Normal)
+                mode: activeTool ? CrosshairMode.Normal : (chartConfig.magnetMode === 'magnetOHLC' ? CrosshairMode.MagnetOHLC : (chartConfig.magnetMode === 'magnet' ? CrosshairMode.Magnet : CrosshairMode.Normal))
             }
         });
 
@@ -545,7 +510,6 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             });
         }
 
-        // Update Layout/Volume Visibility
         const volVisible = chartConfig.volumeVisible ?? false;
         if (volumeSeries.current) {
             volumeSeries.current.applyOptions({ visible: volVisible });
@@ -564,7 +528,7 @@ export const useChart = ({ containerRef, onCrosshairMove }: UseChartProps) => {
             }
         }
 
-    }, [chartConfig, theme.mode, chartConfig.magnetMode]);
+    }, [chartConfig, theme.mode, chartConfig.magnetMode, activeTool]); // Dependency on activeTool added
 
     // Resizing
     useEffect(() => {

@@ -2,148 +2,274 @@ import { useState, useEffect, useRef } from 'react';
 import type { IChartApi, ISeriesApi, Time, MouseEventParams } from 'lightweight-charts';
 import { TrendlinePrimitive, type TrendlineData } from '../components/Chart/plugins/TrendlinePrimitive';
 import { BoxPrimitive, type BoxData } from '../components/Chart/plugins/BoxPrimitive';
+import { AnchorPrimitive } from '../components/Chart/plugins/AnchorPrimitive';
 import { useUIStore } from '../store/useUIStore';
 import { useMarketStore } from '../store/useMarketStore';
 
 export const useDrawings = (
     chart: IChartApi | null,
     series: ISeriesApi<"Candlestick"> | null,
-    onAnchorSelect?: (time: Time) => void
+    anchorTime: Time | null,
+    onAnchorSelect: (time: Time | null) => void
 ) => {
     const { activeTool, setActiveTool } = useUIStore();
-    const {
-        trendlines: drawings,
-        setTrendlines: setDrawings,
-        zones: boxes,
-        setZones: setBoxes
-    } = useMarketStore();
+    const { trendlines, setTrendlines, zones, setZones } = useMarketStore();
 
-    const trendlinePrimitiveRef = useRef<TrendlinePrimitive | null>(null);
-    const boxPrimitiveRef = useRef<BoxPrimitive | null>(null);
-    const tempPointRef = useRef<{ time: Time, price: number } | null>(null);
+    // Primitives Refs
+    const trendlinePrimRef = useRef<TrendlinePrimitive | null>(null);
+    const boxPrimRef = useRef<BoxPrimitive | null>(null);
+    const anchorPrimRef = useRef<AnchorPrimitive | null>(null);
 
-    // Initialize Primitives
+    // Interaction State
+    const [selected, setSelected] = useState<{ type: 'trendline' | 'box' | 'anchor', id?: number } | null>(null);
+    const [dragState, setDragState] = useState<{ type: 'trendline' | 'box' | 'anchor', index?: number, pointIndex?: 1 | 2 } | null>(null);
+
+    const isDrawingRef = useRef(false);
+    const tempPointRef = useRef<{ time: Time, price: number, x: number, y: number } | null>(null);
+
+    // 1. Initialize Primitives
     useEffect(() => {
         if (!chart || !series) return;
 
-        const trendlinePrimitive = new TrendlinePrimitive(chart, series, drawings);
-        series.attachPrimitive(trendlinePrimitive);
-        trendlinePrimitiveRef.current = trendlinePrimitive;
+        const tPrim = new TrendlinePrimitive(chart, series, trendlines);
+        const bPrim = new BoxPrimitive(chart, series, zones);
+        const aPrim = new AnchorPrimitive(chart, series, anchorTime);
 
-        const boxPrimitive = new BoxPrimitive(chart, series, boxes);
-        series.attachPrimitive(boxPrimitive);
-        boxPrimitiveRef.current = boxPrimitive;
+        series.attachPrimitive(tPrim);
+        series.attachPrimitive(bPrim);
+        series.attachPrimitive(aPrim);
+
+        trendlinePrimRef.current = tPrim;
+        boxPrimRef.current = bPrim;
+        anchorPrimRef.current = aPrim;
 
         return () => {
-            if (series) {
-                try {
-                    series.detachPrimitive(trendlinePrimitive);
-                    series.detachPrimitive(boxPrimitive);
-                } catch (e) { }
+            // Cleanup check
+            if ((series as any).detachPrimitive) {
+                (series as any).detachPrimitive(tPrim);
+                (series as any).detachPrimitive(bPrim);
+                (series as any).detachPrimitive(aPrim);
             }
         };
     }, [chart, series]);
 
-    // Update Data
+    // 2. Sync Store Changes -> Primitives
+    // This ensures that when store updates (Delete All, Add New), the chart updates.
     useEffect(() => {
-        if (trendlinePrimitiveRef.current) {
-            trendlinePrimitiveRef.current.setData(drawings);
+        if (trendlinePrimRef.current) {
+            const tData = trendlines.map((t, i) => ({
+                ...t,
+                selected: selected?.type === 'trendline' && selected.id === i
+            }));
+            trendlinePrimRef.current.setData(tData);
         }
-    }, [drawings]);
+    }, [trendlines, selected]);
 
     useEffect(() => {
-        if (boxPrimitiveRef.current) {
-            boxPrimitiveRef.current.setData(boxes);
+        if (boxPrimRef.current) {
+            const bData = zones.map((z, i) => ({
+                ...z,
+                selected: selected?.type === 'box' && selected.id === i
+            }));
+            boxPrimRef.current.setData(bData);
         }
-    }, [boxes]);
+    }, [zones, selected]);
 
-    // Click Handler
+    useEffect(() => {
+        if (anchorPrimRef.current) {
+            anchorPrimRef.current.setData(anchorTime, selected?.type === 'anchor');
+        }
+    }, [anchorTime, selected]);
+
+    // 3. Delete Logic (Keyboard)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
+                if (selected.type === 'trendline' && selected.id !== undefined) {
+                    setTrendlines(prev => prev.filter((_, i) => i !== selected.id));
+                } else if (selected.type === 'box' && selected.id !== undefined) {
+                    setZones(prev => prev.filter((_, i) => i !== selected.id));
+                } else if (selected.type === 'anchor') {
+                    onAnchorSelect(null); // Delete AVWAP
+                }
+                setSelected(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selected, setTrendlines, setZones, onAnchorSelect]);
+
+    // 4. Mouse Interactions
     useEffect(() => {
         if (!chart || !series) return;
 
-        const handleClick = (param: MouseEventParams) => {
-            if (!activeTool) return;
-            if (!param.time || !param.point) return;
+        const handleMouseDown = (param: MouseEventParams) => {
+            if (!param.point) {
+                setSelected(null);
+                return;
+            }
+            const x = param.point.x;
+            const y = param.point.y;
+            const time = chart.timeScale().coordinateToTime(x) as Time;
+            const price = series.coordinateToPrice(y);
 
-            const price = series.coordinateToPrice(param.point.y);
-            if (price === null) return;
+            if (!time || price === null) return;
 
-            const clickedPoint = { time: param.time, price };
-
-            if (!tempPointRef.current) {
-                // Start drawing
-                tempPointRef.current = clickedPoint;
-            } else {
-                // Finish drawing
-                if (activeTool === 'trendline') {
-                    const newDrawing: TrendlineData = {
-                        p1: tempPointRef.current,
-                        p2: clickedPoint,
-                        color: '#3b82f6', // blue-500
-                        width: 2
-                    };
-                    setDrawings(d => [...d, newDrawing]);
-                } else if (activeTool === 'box') {
-                    const newBox: BoxData = {
-                        p1: tempPointRef.current,
-                        p2: clickedPoint,
-                        color: '#3b82f6',
-                        fillColor: 'rgba(59, 130, 246, 0.2)', // blue-500 with opacity
-                        width: 1
-                    };
-                    setBoxes(b => [...b, newBox]);
-                } else if (activeTool === 'avwap') {
-                    if (onAnchorSelect) {
-                        onAnchorSelect(clickedPoint.time);
-                    }
+            // A. DRAWING MODE (New)
+            if (activeTool) {
+                if (activeTool === 'avwap') {
+                    onAnchorSelect(time);
                     setActiveTool(null);
-                    tempPointRef.current = null;
-                    return; // Early return for avwap as it's not a drawing primitive
+                    return;
                 }
 
-                tempPointRef.current = null;
-                setActiveTool(null); // Reset tool
+                isDrawingRef.current = true;
+                tempPointRef.current = { time, price, x, y };
+                setSelected(null);
+                return;
+            }
+
+            // B. SELECTION & DRAG MODE (Hit Tests)
+
+            // 1. Check Anchor (AVWAP)
+            if (anchorPrimRef.current) {
+                const hit = anchorPrimRef.current.hitTest(x, y);
+                if (hit) {
+                    setSelected({ type: 'anchor' });
+                    setDragState({ type: 'anchor' });
+                    chart.timeScale().applyOptions({ shiftVisibleRangeOnNewBar: false });
+                    return;
+                }
+            }
+
+            // 2. Check Trendlines
+            if (trendlinePrimRef.current) {
+                const hit = trendlinePrimRef.current.hitTest(x, y);
+                if (hit && hit.externalId) {
+                    const id = parseInt(hit.externalId.split('-')[1]);
+                    setSelected({ type: 'trendline', id });
+                    setDragState({ type: 'trendline', index: id, pointIndex: 2 });
+                    chart.timeScale().applyOptions({ shiftVisibleRangeOnNewBar: false });
+                    return;
+                }
+            }
+
+            // 3. Check Zones
+            if (boxPrimRef.current) {
+                const hit = boxPrimRef.current.hitTest(x, y);
+                if (hit && hit.externalId) {
+                    const id = parseInt(hit.externalId.split('-')[1]);
+                    setSelected({ type: 'box', id });
+                    setDragState({ type: 'box', index: id, pointIndex: 2 });
+                    chart.timeScale().applyOptions({ shiftVisibleRangeOnNewBar: false });
+                    return;
+                }
+            }
+
+            // Clicked Empty Space -> Deselect
+            setSelected(null);
+        };
+
+        const handleMouseMove = (param: MouseEventParams) => {
+            const x = param.point?.x;
+            const y = param.point?.y;
+            if (!x || !y) return;
+
+            const time = chart.timeScale().coordinateToTime(x) as Time;
+            const price = series.coordinateToPrice(y);
+            if (!time || price === null) return;
+
+            const currentPoint = { time, price };
+
+            // A. DRAWING PREVIEW
+            if (isDrawingRef.current && activeTool && tempPointRef.current) {
+                const p1 = {
+                    time: tempPointRef.current.time,
+                    price: tempPointRef.current.price
+                };
+
+                if (activeTool === 'trendline' && trendlinePrimRef.current) {
+                    // Update Primitive directly for smooth 60fps preview
+                    trendlinePrimRef.current.setData([...trendlines, { p1, p2: currentPoint, color: '#3b82f6', width: 2, selected: true }]);
+                } else if (activeTool === 'box' && boxPrimRef.current) {
+                    boxPrimRef.current.setData([...zones, { p1, p2: currentPoint, color: '#3b82f6', fillColor: 'rgba(59,130,246,0.2)', width: 1, selected: true }]);
+                }
+                return;
+            }
+
+            // B. DRAGGING EXISTING
+            if (dragState) {
+                if (dragState.type === 'anchor') {
+                    // Dragging AVWAP Anchor
+                    onAnchorSelect(time); // Live update anchor time
+                }
+                else if (dragState.type === 'trendline' && dragState.index !== undefined) {
+                    // Update Trendline in Store (triggers effect -> primitive update)
+                    setTrendlines(prev => {
+                        const next = [...prev];
+                        if (next[dragState.index!]) {
+                            // Only update P2 for now (resize)
+                            next[dragState.index!].p2 = currentPoint;
+                        }
+                        return next;
+                    });
+                }
+                else if (dragState.type === 'box' && dragState.index !== undefined) {
+                    setZones(prev => {
+                        const next = [...prev];
+                        if (next[dragState.index!]) {
+                            next[dragState.index!].p2 = currentPoint;
+                        }
+                        return next;
+                    });
+                }
             }
         };
 
-        const handleMove = (param: MouseEventParams) => {
-            if (!activeTool || !tempPointRef.current) return;
-            if (!param.time || !param.point) return;
+        const handleMouseUp = (param: MouseEventParams) => {
+            // A. FINISH DRAWING
+            if (isDrawingRef.current && activeTool && tempPointRef.current && param.point) {
+                const time = chart.timeScale().coordinateToTime(param.point.x) as Time;
+                const price = series.coordinateToPrice(param.point.y);
 
-            const price = series.coordinateToPrice(param.point.y);
-            if (price === null) return;
+                if (time && price !== null) {
+                    const p1 = { time: tempPointRef.current.time, price: tempPointRef.current.price };
+                    const p2 = { time, price };
 
-            const currentPoint = { time: param.time, price };
+                    // Capture the tool type before resetting
+                    const toolType = activeTool;
 
-            if (activeTool === 'trendline' && trendlinePrimitiveRef.current) {
-                const previewLine: TrendlineData = {
-                    p1: tempPointRef.current,
-                    p2: currentPoint,
-                    color: '#3b82f6',
-                    width: 2
-                };
-                trendlinePrimitiveRef.current.setData([...drawings, previewLine]);
-            } else if (activeTool === 'box' && boxPrimitiveRef.current) {
-                const previewBox: BoxData = {
-                    p1: tempPointRef.current,
-                    p2: currentPoint,
-                    color: '#3b82f6',
-                    fillColor: 'rgba(59, 130, 246, 0.2)',
-                    width: 1
-                };
-                boxPrimitiveRef.current.setData([...boxes, previewBox]);
+                    // Reset Drawing State FIRST to clear preview
+                    isDrawingRef.current = false;
+                    tempPointRef.current = null;
+                    setActiveTool(null);
+
+                    // Then add to store - this will trigger the sync effect
+                    if (toolType === 'trendline') {
+                        setTrendlines(prev => [...prev, { p1, p2, color: '#3b82f6', width: 2 }]);
+                    } else if (toolType === 'box') {
+                        setZones(prev => [...prev, { p1, p2, color: '#3b82f6', fillColor: 'rgba(59,130,246,0.2)', width: 1 }]);
+                    }
+                }
+            }
+
+            // B. FINISH DRAG
+            if (dragState) {
+                setDragState(null);
+                chart.timeScale().applyOptions({ shiftVisibleRangeOnNewBar: true });
             }
         };
 
-        chart.subscribeClick(handleClick);
-        chart.subscribeCrosshairMove(handleMove);
+        chart.subscribeClick(handleMouseDown);
+        chart.subscribeCrosshairMove(handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
 
         return () => {
-            chart.unsubscribeClick(handleClick);
-            chart.unsubscribeCrosshairMove(handleMove);
+            chart.unsubscribeClick(handleMouseDown);
+            chart.unsubscribeCrosshairMove(handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
         };
-
-    }, [chart, series, activeTool, drawings, boxes, setActiveTool]);
+    }, [chart, series, activeTool, trendlines, zones, selected, anchorTime, dragState]);
 
     return {};
 };
